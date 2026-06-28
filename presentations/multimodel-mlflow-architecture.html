@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Multi-Model MLflow Logging at Scale — Architecture Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   ENGINEERING MEMO — design system extended across the full deck.
+   Dark slate canvas · cream type · signal-orange accents · serif + mono.
+   Reused across every slide via shared decoration vocabulary:
+     - .memo top strip with a tag chip + arrow + title
+     - .specs bottom strip with key-value labels
+     - faint vertical hairline grid behind every slide
+   ===================================================================== */
+
+:root {
+  --bg: #0e1116;
+  --bg-elev: #161a22;
+  --hairline: rgba(229,225,214,0.10);
+  --hairline-strong: rgba(229,225,214,0.20);
+  --text: #e5e1d6;
+  --text-soft: #8d8a82;
+  --text-muted: #5d5b56;
+  --signal: #ff7548;
+  --signal-soft: rgba(255,117,72,0.22);
+  --signal-ghost: rgba(255,117,72,0.08);
+  --code: #6cd3a0;
+  --code-soft: rgba(108,211,160,0.08);
+  --port: #8fb1ff;
+  --port-soft: rgba(143,177,255,0.10);
+}
+
+/* =====================================================================
+   viewport-base.css — MANDATORY base styles for fixed 1920×1080 stage
+   ===================================================================== */
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #000; }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: #000; }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: var(--bg); }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: var(--bg); }
+.slide.active { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 1000; }
+@media print {
+  html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+  .deck-viewport { position: static; overflow: visible; background: #fff; }
+  .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+  .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  .deck-controls { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; } }
+
+/* =====================================================================
+   Per-slide shared decoration: faint vertical hairline grid + memo strip
+   ===================================================================== */
+.slide {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--text);
+}
+.slide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to right, var(--hairline) 1px, transparent 1px);
+  background-size: 60px 100%;
+  background-position: 120px 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.frame {
+  position: absolute;
+  inset: 80px 110px 70px 120px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+/* === Memo strip (top) — shared across all content slides === */
+.memo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+.memo-left { display: flex; gap: 32px; align-items: center; }
+.memo-right { color: var(--text-muted); }
+.memo .tag {
+  background: var(--signal-soft);
+  color: var(--signal);
+  padding: 4px 10px 5px;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  border-radius: 2px;
+}
+.memo .arrow { color: var(--signal); }
+
+/* === Specs strip (bottom) — shared === */
+.specs {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr;
+  align-items: end;
+  padding-top: 22px;
+  border-top: 1px solid var(--hairline);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.spec-block .lbl {
+  display: block;
+  color: var(--text-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.spec-block .val {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.spec-block .val .signal { color: var(--signal); }
+
+/* === Slide section headings (used on content slides) === */
+.section-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--signal);
+  margin-bottom: 18px;
+}
+.section-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 90px;
+  line-height: 0.96;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.section-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--signal);
+}
+.section-dek {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--text-soft);
+  max-width: 1400px;
+  margin: 0;
+}
+.section-dek b { color: var(--text); font-weight: 500; }
+.section-dek code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  color: var(--code);
+  background: var(--code-soft);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* === Entrance animations (run only when slide is .active) === */
+.slide.active .memo { animation: fadeIn 600ms ease-out 100ms both; }
+.slide.active .section-eyebrow { animation: rise 700ms cubic-bezier(.2,.8,.2,1) 250ms both; }
+.slide.active .section-title { animation: rise 800ms cubic-bezier(.2,.8,.2,1) 350ms both; }
+.slide.active .section-dek { animation: rise 700ms cubic-bezier(.2,.8,.2,1) 450ms both; }
+.slide.active .body-stack > * { animation: rise 700ms cubic-bezier(.2,.8,.2,1) both; }
+.slide.active .body-stack > *:nth-child(1) { animation-delay: 600ms; }
+.slide.active .body-stack > *:nth-child(2) { animation-delay: 700ms; }
+.slide.active .body-stack > *:nth-child(3) { animation-delay: 800ms; }
+.slide.active .body-stack > *:nth-child(4) { animation-delay: 900ms; }
+.slide.active .specs { animation: fadeIn 700ms ease-out 1000ms both; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* =====================================================================
+   SLIDE 1 — TITLE
+   ===================================================================== */
+.slide.title-slide .frame {
+  inset: 80px 110px 70px 120px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+.title-hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  padding: 20px 0;
+}
+.title-coords {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 30px;
+}
+.title-coords .num { color: var(--signal); }
+.title-headline {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 200px;
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+.title-headline em {
+  font-style: italic;
+  font-weight: 400;
+  font-variation-settings: 'opsz' 144;
+  color: var(--signal);
+}
+.title-headline .small {
+  display: block;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-soft);
+  font-size: 200px;
+}
+.title-dek {
+  margin-top: 50px;
+  max-width: 1280px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+.title-dek b { color: var(--text); font-weight: 500; }
+.title-dek code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  color: var(--code);
+  background: var(--code-soft);
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.crosshair {
+  position: absolute;
+  top: 80px;
+  right: 110px;
+  width: 90px;
+  height: 90px;
+}
+.crosshair::before,
+.crosshair::after { content: ''; position: absolute; background: var(--signal); }
+.crosshair::before { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%); }
+.crosshair::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-50%); }
+.crosshair .dot {
+  position: absolute; left: 50%; top: 50%;
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--signal);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.crosshair .ring {
+  position: absolute; left: 50%; top: 50%;
+  width: 56px; height: 56px;
+  border: 1px solid rgba(255,117,72,0.32);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.slide.active.title-slide .title-coords { animation: rise 800ms cubic-bezier(.2,.8,.2,1) 400ms both; }
+.slide.active.title-slide .title-headline { animation: rise 900ms cubic-bezier(.2,.8,.2,1) 550ms both; }
+.slide.active.title-slide .title-dek { animation: rise 800ms cubic-bezier(.2,.8,.2,1) 750ms both; }
+.slide.active.title-slide .crosshair { animation: fadeIn 1000ms ease-out 700ms both; }
+
+/* =====================================================================
+   SLIDE 2 — PROBLEM AT SCALE
+   ===================================================================== */
+.problem-content { padding: 30px 0 20px; display: flex; flex-direction: column; gap: 40px; }
+.ceilings {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.ceiling {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--signal);
+  padding: 26px 28px;
+}
+.ceiling .num {
+  font-family: 'Fraunces', serif;
+  font-size: 72px;
+  line-height: 1;
+  color: var(--signal);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.ceiling .unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-left: 4px;
+  letter-spacing: 0.08em;
+}
+.ceiling .name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  color: var(--text);
+  margin-top: 14px;
+  font-weight: 500;
+}
+.ceiling .desc {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.bp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bp-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.bp-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bp-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--code);
+  background: var(--code-soft);
+  border: 1px solid rgba(108,211,160,0.18);
+  padding: 7px 13px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+.bp-chip .x { color: var(--signal); margin-right: 6px; }
+.bp-chip .ok { color: var(--code); margin-right: 6px; }
+
+/* =====================================================================
+   SLIDE 3 — HEXAGONAL ARCHITECTURE
+   ===================================================================== */
+.arch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 28px;
+  padding: 30px 0 20px;
+}
+.arch-col {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 24px 26px;
+  position: relative;
+}
+.arch-col.domains { border-top: 2px solid var(--signal); }
+.arch-col.ports   { border-top: 2px solid var(--port); }
+.arch-col.adapters { border-top: 2px solid var(--code); }
+.arch-col h3 {
+  margin: 0 0 4px;
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-style: italic;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+}
+.arch-col.domains h3 { color: var(--signal); }
+.arch-col.ports h3 { color: var(--port); }
+.arch-col.adapters h3 { color: var(--code); }
+.arch-col .tagline {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.20em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+.arch-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.75;
+}
+.arch-col li::before {
+  content: '·';
+  color: var(--text-muted);
+  margin-right: 10px;
+}
+.arch-col .note {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--hairline);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+.arch-dep {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 14px 0;
+}
+.arch-dep .signal { color: var(--signal); }
+
+/* =====================================================================
+   SLIDE 4 — FIVE-STAGE PIPELINE
+   ===================================================================== */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  padding: 30px 0 16px;
+}
+.stage {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 22px 20px;
+  position: relative;
+}
+.stage::after {
+  content: '→';
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--signal);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  z-index: 2;
+}
+.stage:last-child::after { content: none; }
+.stage .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--signal);
+  letter-spacing: 0.22em;
+  margin-bottom: 14px;
+}
+.stage h4 {
+  margin: 0 0 12px;
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.05;
+}
+.stage .adapter {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--code);
+  background: var(--code-soft);
+  padding: 4px 8px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+.stage .desc {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+.dataflow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding-top: 18px;
+}
+.df-card {
+  background: rgba(229,225,214,0.03);
+  border: 1px solid var(--hairline);
+  padding: 14px 16px;
+}
+.df-card .ttl {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--port);
+  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+}
+.df-card .desc {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+/* =====================================================================
+   SLIDE 5 — THREE LOGGING STRATEGIES
+   ===================================================================== */
+.strategies {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  padding: 24px 0 8px;
+}
+.strat {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 22px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.strat .pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  align-self: flex-start;
+  font-weight: 500;
+}
+.strat .pill.default { background: var(--signal-soft); color: var(--signal); }
+.strat .pill.compare { background: var(--port-soft); color: var(--port); }
+.strat .pill.baseline { background: var(--code-soft); color: var(--code); }
+.strat h4 {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1;
+}
+.strat .slug {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+.strat .hier {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-soft);
+  background: rgba(229,225,214,0.03);
+  padding: 8px 10px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+.strat .hier .arr { color: var(--signal); }
+.strat .stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.strat .stats .k {
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+.strat .stats .v {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+.strat .stats .v.warn { color: var(--signal); }
+.strat .stats .v.good { color: var(--code); }
+.strat .when {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-soft);
+  line-height: 1.45;
+  border-top: 1px dashed var(--hairline);
+  padding-top: 12px;
+}
+.strat .when b { color: var(--text); font-weight: 500; }
+.strat-swap {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.10em;
+  padding: 16px 0 0;
+}
+.strat-swap code {
+  background: var(--code-soft);
+  color: var(--code);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+/* =====================================================================
+   SLIDE 6 — CONFIGURATION
+   ===================================================================== */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  padding: 28px 0 16px;
+}
+.config-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 24px 26px 26px;
+}
+.config-card.left { border-top: 2px solid var(--signal); }
+.config-card.right { border-top: 2px solid var(--port); }
+.config-card h4 {
+  margin: 0 0 8px;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+.config-card.left h4 { color: var(--signal); }
+.config-card.right h4 { color: var(--port); }
+.config-card .sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.config-card pre {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 16px;
+  background: rgba(229,225,214,0.03);
+  padding: 14px 16px;
+  border-radius: 3px;
+  color: var(--text);
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+.config-card pre .kw { color: var(--signal); }
+.config-card pre .str { color: var(--code); }
+.config-card pre .num { color: var(--port); }
+.config-card pre .cm { color: var(--text-muted); }
+.config-card .controls {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+.config-card .controls b { color: var(--text); font-weight: 500; }
+.config-source {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  margin-top: 12px;
+}
+.config-source .src {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.config-source .src .k {
+  display: block;
+  color: var(--signal);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* =====================================================================
+   SLIDE 7 — DEPLOYMENT (DATABRICKS ASSET BUNDLE)
+   ===================================================================== */
+.bundle {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 0 16px;
+}
+.bundle-row {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 280px 1fr 360px;
+  gap: 28px;
+  align-items: center;
+}
+.bundle-row.job { border-left: 3px solid var(--signal); }
+.bundle-row.cluster { border-left: 3px solid var(--port); }
+.bundle-row.bundle { border-left: 3px solid var(--code); }
+.bundle-row .lbl {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.bundle-row .lbl .file {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+.bundle-row .what {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+.bundle-row .what b { color: var(--text); font-weight: 500; }
+.bundle-row .what code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--code);
+  background: var(--code-soft);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.bundle-row .specs-mini {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+.bundle-row .specs-mini .k { color: var(--text-muted); }
+.bundle-row .specs-mini .v { color: var(--text); }
+.bundle-cmd {
+  text-align: center;
+  padding: 18px 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.bundle-cmd code {
+  color: var(--signal);
+  background: var(--signal-ghost);
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+/* =====================================================================
+   SLIDE 8 — RUN IT YOURSELF
+   ===================================================================== */
+.run-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 36px;
+  padding: 30px 0 20px;
+}
+.run-block { display: flex; flex-direction: column; gap: 18px; }
+.run-block h4 {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  color: var(--signal);
+}
+.run-cmd {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--signal);
+  padding: 18px 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.run-cmd .cm { color: var(--text-muted); }
+.run-cmd .prompt { color: var(--signal); margin-right: 8px; }
+.run-cmd .arg { color: var(--code); }
+.next-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+.next-list li {
+  padding-left: 28px;
+  position: relative;
+  margin-bottom: 8px;
+}
+.next-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--signal);
+}
+.next-list b { color: var(--text); font-weight: 500; }
+.next-list code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--code);
+  background: var(--code-soft);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.contact {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  margin-top: 10px;
+}
+.contact .k {
+  display: block;
+  color: var(--signal);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* =====================================================================
+   Slide counter chrome — small unobtrusive bottom-right counter
+   ===================================================================== */
+.deck-counter {
+  position: absolute;
+  right: 120px;
+  bottom: 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  z-index: 100;
+  pointer-events: none;
+}
+.deck-counter .cur { color: var(--signal); }
+.deck-counter .sep { margin: 0 8px; color: var(--text-muted); }
+
+/* =====================================================================
+   v2 SLIDES — uc_table strategy, bundle write/read, scaling proof
+   ===================================================================== */
+
+.signal-num { color: var(--signal); font-weight: 600; }
+
+/* §05 uc_table — left/right grid */
+.uctable-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 32px;
+  margin-top: 32px;
+}
+.uc-side {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 28px 30px;
+  position: relative;
+}
+.uc-side.mlflow { border-left: 2px solid var(--signal); }
+.uc-side.uc     { border-left: 2px solid var(--port); }
+.uc-side .side-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.uc-side h4 {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 38px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 0 0 18px;
+}
+.uc-side.mlflow h4 { color: var(--signal); }
+.uc-side.uc h4     { color: var(--port); }
+.uc-side .kv {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  color: var(--text-soft); margin: 6px 0;
+}
+.uc-side .kv .v { color: var(--text); font-weight: 500; }
+.uc-side .tag-list { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--hairline); }
+.uc-side .tag-lbl {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.uc-side .tag-pill {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  background: var(--signal-soft); color: var(--signal);
+  padding: 5px 11px; border-radius: 3px; margin: 3px 4px 3px 0;
+}
+.uc-side .uc-item { margin: 14px 0; padding: 12px 0; border-bottom: 1px dashed var(--hairline); }
+.uc-side .uc-item:last-child { border-bottom: none; }
+.uc-side .uc-k {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.uc-side .uc-v {
+  font-family: 'JetBrains Mono', monospace; font-size: 16px;
+  color: var(--port); margin-bottom: 4px;
+}
+.uc-side .uc-note { font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: var(--text-soft); line-height: 1.5; }
+.uc-side code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--code-soft); color: var(--code);
+  padding: 1px 6px; border-radius: 2px; font-size: 13px;
+}
+
+/* §06 bundle write — three knobs + code block + note */
+.knobs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin: 28px 0 20px;
+}
+.knob {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--signal);
+  padding: 22px 24px;
+}
+.knob-num {
+  font-family: 'Fraunces', serif;
+  font-size: 72px; line-height: 1; font-weight: 500;
+  color: var(--signal); letter-spacing: -0.03em;
+}
+.knob-unit { font-family: 'JetBrains Mono', monospace; font-size: 22px; color: var(--text-muted); margin-left: 4px; letter-spacing: 0.08em; }
+.knob-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  letter-spacing: 0.16em; color: var(--text); margin: 10px 0 8px;
+  text-transform: lowercase;
+}
+.knob-desc {
+  font-family: 'Space Grotesk', sans-serif; font-size: 14px;
+  color: var(--text-soft); line-height: 1.5;
+}
+.knob-desc code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--code-soft); color: var(--code);
+  padding: 1px 5px; border-radius: 2px; font-size: 12px;
+}
+.write-code, .read-code {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--code);
+  padding: 18px 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: auto;
+}
+.write-code pre, .read-code pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.write-code .hl, .read-code .hl { color: var(--signal); font-weight: 500; }
+.write-code .cmt, .read-code .cmt { color: var(--text-muted); font-style: italic; }
+.write-note {
+  margin-top: 18px;
+  padding: 16px 22px;
+  background: var(--signal-ghost);
+  border-left: 2px solid var(--signal);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+.write-note b { color: var(--signal); font-weight: 500; }
+.write-note code { font-family: 'JetBrains Mono', monospace; background: var(--code-soft); color: var(--code); padding: 1px 5px; border-radius: 2px; font-size: 13px; }
+
+/* §07 bundle read — side-by-side cards */
+.read-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 24px 0 16px;
+}
+.read-side {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 22px 24px;
+}
+.read-side.primary { border-left: 2px solid var(--signal); }
+.read-side.secondary { border-left: 2px solid var(--port); }
+.read-side .pill {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 4px 10px 5px; border-radius: 2px; display: inline-block;
+}
+.read-side .pill.default { background: var(--signal-soft); color: var(--signal); }
+.read-side .pill.compare { background: var(--port-soft); color: var(--port); }
+.read-side h4 {
+  font-family: 'Fraunces', serif; font-style: italic;
+  font-weight: 500; font-size: 36px; letter-spacing: -0.02em;
+  margin: 14px 0 4px;
+}
+.read-side.primary h4 { color: var(--signal); }
+.read-side.secondary h4 { color: var(--port); }
+.read-side .slug {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--text-muted); margin-bottom: 12px;
+}
+.read-side .read-code { font-size: 12px; padding: 12px 16px; margin-bottom: 14px; }
+.read-side .kv-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin: 14px 0;
+}
+.read-side .kv-c { text-align: center; }
+.read-side .kv-c .k {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted);
+}
+.read-side .kv-c .v { font-family: 'Fraunces', serif; font-size: 24px; line-height: 1.1; }
+.read-side .kv-c .v.good { color: var(--code); }
+.read-side .kv-c .v.warn { color: var(--text-soft); font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+.read-side .when {
+  font-family: 'Space Grotesk', sans-serif; font-size: 14px;
+  color: var(--text-soft); line-height: 1.5;
+}
+.read-side .when b { color: var(--signal); font-weight: 500; }
+.read-side .when code { font-family: 'JetBrains Mono', monospace; background: var(--code-soft); color: var(--code); padding: 1px 4px; border-radius: 2px; font-size: 12px; }
+.read-note {
+  margin-top: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.read-note code { font-family: 'JetBrains Mono', monospace; background: var(--code-soft); color: var(--code); padding: 1px 5px; border-radius: 2px; font-size: 12px; }
+
+/* §08 scaling proof — chart + table + headline numbers */
+.scaling-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 32px;
+  margin: 28px 0 24px;
+}
+.chart {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 24px 28px;
+  position: relative;
+}
+.chart-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.chart-lbl {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  letter-spacing: 0.10em; color: var(--text);
+}
+.chart-bar { background: rgba(229,225,214,0.06); height: 36px; position: relative; }
+.chart-bar .bar {
+  background: var(--signal);
+  height: 100%;
+  display: flex; align-items: center;
+  position: relative;
+}
+.chart-bar .bar-val {
+  color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  font-weight: 500;
+  position: absolute; right: 12px;
+  text-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+.chart-axis {
+  display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 10px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text-muted); letter-spacing: 0.1em;
+  padding-left: 180px;
+}
+.chart-cap {
+  margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--hairline);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  letter-spacing: 0.14em; color: var(--text-muted);
+  text-transform: uppercase;
+}
+.scaling-tbl {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: 18px 22px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+.scaling-tbl table { border-collapse: collapse; width: 100%; }
+.scaling-tbl th, .scaling-tbl td {
+  padding: 8px 6px; text-align: right; border-bottom: 1px dashed var(--hairline);
+}
+.scaling-tbl th:first-child, .scaling-tbl td:first-child { text-align: left; }
+.scaling-tbl th {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 400;
+}
+.scaling-tbl td { color: var(--text); }
+.scaling-tbl tr.best td { color: var(--signal); font-weight: 500; }
+.scaling-headlines {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+  margin-top: 8px;
+}
+.hl-num {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-top: 2px solid var(--signal);
+  padding: 18px 20px;
+}
+.hl-num .n {
+  font-family: 'Fraunces', serif; font-size: 56px; font-weight: 500;
+  line-height: 1; letter-spacing: -0.03em;
+}
+.hl-num .l {
+  font-family: 'Space Grotesk', sans-serif; font-size: 13px;
+  color: var(--text-soft); margin-top: 8px; line-height: 1.4;
+}
+
+</style>
+</head>
+<body>
+<div class="deck-viewport">
+  <div class="deck-stage">
+
+    <!-- ================================================================
+         SLIDE 1 — TITLE
+         ================================================================ -->
+    <section class="slide title-slide active" data-label="Title">
+      <div class="crosshair">
+        <span class="ring"></span>
+        <span class="dot"></span>
+      </div>
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">memo · 001</span>
+            <span>dbrx-multimodel-deployment-demo</span>
+            <span class="arrow">→</span>
+            <span>architecture walkthrough</span>
+          </div>
+          <div class="memo-right">2026 · 06 · 22</div>
+        </header>
+
+        <div class="title-hero">
+          <div class="title-coords">v0.1.0 · <span class="num">5</span> stages · <span class="num">3</span> strategies · field engineering memo</div>
+          <h1 class="title-headline">
+            Multi-Model<br>
+            <em>MLflow Logging</em><br>
+            <span class="small">at scale.</span>
+          </h1>
+          <p class="title-dek">A walkthrough of the codebase that logs ~<b>1.5M model entries</b> to MLflow on Databricks. Hexagonal architecture, five-stage pipeline, three swappable logging strategies behind a single <code>ModelLoggingStrategyPort</code> — all driven by <code>databricks bundle deploy</code>.</p>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block">
+            <span class="lbl">prepared by</span>
+            <span class="val">Akil Thomas · Field Engineering</span>
+          </div>
+          <div class="spec-block">
+            <span class="lbl">target scale</span>
+            <span class="val"><span class="signal">1.5M</span> model entries</span>
+          </div>
+          <div class="spec-block">
+            <span class="lbl">strategies</span>
+            <span class="val"><span class="signal">3</span> swappable adapters</span>
+          </div>
+          <div class="spec-block">
+            <span class="lbl">stages</span>
+            <span class="val"><span class="signal">5</span> · generate → log</span>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 2 — PROBLEM AT SCALE
+         ================================================================ -->
+    <section class="slide" data-label="Problem at scale">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§01 · problem</span>
+            <span>where naive logging breaks</span>
+            <span class="arrow">→</span>
+            <span>workspace rate ceilings</span>
+          </div>
+          <div class="memo-right">slide 02 / 12</div>
+        </header>
+
+        <div class="problem-content body-stack">
+          <div>
+            <div class="section-eyebrow">workspace rate ceilings</div>
+            <h2 class="section-title">Three ceilings make <em>"log everything"</em> impossible.</h2>
+            <p class="section-dek">At 1.5M model entries with one MLflow run per model, you'd need <b>~12 hours</b> just for artifact uploads. The fix isn't more concurrency — it's reshaping the work to stay under each ceiling. The Albertsons MLflow-at-scale guidance pinpoints the failure modes; we apply every one of them.</p>
+          </div>
+
+          <div class="ceilings">
+            <div class="ceiling">
+              <span class="num">35<span class="unit">RPS</span></span>
+              <div class="name">Artifact upload ceiling</div>
+              <div class="desc">Per workspace. Routes through <code>mlflowdbfs</code> by default — which silently 401s under thread-pool concurrency. Set <code>DISABLE_MLFLOWDBFS=true</code> before any mlflow import.</div>
+            </div>
+            <div class="ceiling">
+              <span class="num">120<span class="unit">RPS</span></span>
+              <div class="name">Tracking API ceiling</div>
+              <div class="desc">create_run, end_run, log_batch — all share this budget. Async logging + <code>log_batch(params, metrics)</code> hide latency; they don't raise the cap.</div>
+            </div>
+            <div class="ceiling">
+              <span class="num">500K<span class="unit">runs</span></span>
+              <div class="name">Per-experiment run cap</div>
+              <div class="desc">Hard limit. With 1 experiment per region and 100k SKUs × 3 models, naive nesting hits this. We split by region <b>and</b> collapse the model leaf to stay under.</div>
+            </div>
+          </div>
+
+          <div class="bp-row">
+            <div class="bp-label">best practices applied — Albertsons MLflow-at-scale</div>
+            <div class="bp-chips">
+              <span class="bp-chip"><span class="ok">✓</span>DISABLE_MLFLOWDBFS</span>
+              <span class="bp-chip"><span class="ok">✓</span>async logging</span>
+              <span class="bp-chip"><span class="ok">✓</span>log_batch (dict)</span>
+              <span class="bp-chip"><span class="ok">✓</span>bounded uploader pool</span>
+              <span class="bp-chip"><span class="x">✗</span>autolog</span>
+              <span class="bp-chip"><span class="x">✗</span>system_metrics_logging</span>
+              <span class="bp-chip"><span class="x">✗</span>mlflow.tracing</span>
+              <span class="bp-chip"><span class="ok">✓</span>UC Volume artifacts</span>
+            </div>
+          </div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">ref</span><span class="val">MLflow Logging at Scale — Albertsons</span></div>
+          <div class="spec-block"><span class="lbl">naive cost</span><span class="val"><span class="signal">12+ h</span> for 1.5M models</span></div>
+          <div class="spec-block"><span class="lbl">our strategy</span><span class="val">collapse · split · batch</span></div>
+          <div class="spec-block"><span class="lbl">see</span><span class="val">docs/MLflow Logging at Scale.pdf</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 3 — HEXAGONAL ARCHITECTURE
+         ================================================================ -->
+    <section class="slide" data-label="Hexagonal architecture">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§02 · architecture</span>
+            <span>domains · ports · adapters</span>
+            <span class="arrow">→</span>
+            <span>dependency direction</span>
+          </div>
+          <div class="memo-right">slide 03 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">hexagonal architecture</div>
+            <h2 class="section-title">Three rings. <em>Adapters depend inward.</em></h2>
+            <p class="section-dek">Pure dataclasses in <code>domains/</code>. <code>Protocol</code> interfaces in <code>ports/</code>. Concrete adapters wire to Spark, MLflow, and Delta. Domain entities are <b>self-describing</b> — <code>SparkSchemaMixin.spark_schema()</code> derives the Spark <code>StructType</code> from the dataclass, so adapters never duplicate the schema.</p>
+          </div>
+
+          <div class="arch-grid">
+            <div class="arch-col domains">
+              <h3>Domains</h3>
+              <div class="tagline">pure · entity-as-schema</div>
+              <ul>
+                <li>DemandRecord</li>
+                <li>TrainedModelRecord</li>
+                <li>RunPlanKey</li>
+                <li>GenerationSpec</li>
+                <li>RegionSpec</li>
+                <li>LoggingConfig</li>
+                <li>LoggingMetrics</li>
+              </ul>
+              <div class="note">All inherit <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">SparkSchemaMixin</code> → free <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">.spark_schema()</code>.</div>
+            </div>
+
+            <div class="arch-col ports">
+              <h3>Ports</h3>
+              <div class="tagline">protocol · contract only</div>
+              <ul>
+                <li>DataGeneratorPort</li>
+                <li>ReferenceModelTrainerPort</li>
+                <li>TrainingSimulatorPort</li>
+                <li>RunPlanRepositoryPort</li>
+                <li>ModelLoggingStrategyPort</li>
+              </ul>
+              <div class="note">Each port is a tiny <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">Protocol</code>. Strategy swap = swap one adapter behind one port.</div>
+            </div>
+
+            <div class="arch-col adapters">
+              <h3>Adapters</h3>
+              <div class="tagline">concrete · framework-aware</div>
+              <ul>
+                <li>SparkDataGenerator</li>
+                <li>ReferenceModelTrainer</li>
+                <li>TrainingSimulator</li>
+                <li>DeltaRunPlanRepository</li>
+                <li>CollapsedSkuLoggingStrategy</li>
+                <li>NestedModelLoggingStrategy</li>
+                <li>RegionArtifactOnlyStrategy</li>
+              </ul>
+              <div class="note">Spark, MLflow, Delta live here. Domains have <b>no</b> framework imports.</div>
+            </div>
+          </div>
+
+          <div class="arch-dep">adapters <span class="signal">→</span> ports <span class="signal">→</span> domains · <span class="signal">never the other way</span></div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">layout</span><span class="val">src/dbrx_multimodel_registration/{domains,ports,adapters}</span></div>
+          <div class="spec-block"><span class="lbl">entrypoint</span><span class="val">src/main.py + notebooks/demo.ipynb</span></div>
+          <div class="spec-block"><span class="lbl">helper</span><span class="val">utils/helpers.py · SparkSchemaMixin</span></div>
+          <div class="spec-block"><span class="lbl">entities</span><span class="val"><span class="signal">7</span> · all self-describing</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 4 — FIVE-STAGE PIPELINE
+         ================================================================ -->
+    <section class="slide" data-label="Five-stage pipeline">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§03 · pipeline</span>
+            <span>generate · train · simulate · persist · log</span>
+            <span class="arrow">→</span>
+            <span>flow + data shapes</span>
+          </div>
+          <div class="memo-right">slide 04 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">five-stage pipeline</div>
+            <h2 class="section-title">Generate, train <em>once</em>, simulate, persist, log.</h2>
+            <p class="section-dek">Stage 2 trains one real reference RandomForest on a single (region, sku) slice; Stage 3 broadcasts the bytes; Stage 4's pandas_udf exposes a <code>model_training_fn</code> seam where real distributed training would slot in. The benchmark is <b>Stage 5</b> — driver-side multithreaded MLflow logging.</p>
+          </div>
+
+          <div class="pipeline">
+            <div class="stage">
+              <div class="num">STAGE 1</div>
+              <h4>Generate mock demand</h4>
+              <div class="adapter">SparkDataGenerator</div>
+              <div class="desc">Cross-product of (regions × skus × rows_per_sku) emitted via <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">mapInPandas</code>. Schema derived from <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">DemandRecord</code>.</div>
+            </div>
+            <div class="stage">
+              <div class="num">STAGE 2</div>
+              <h4>Train ONE reference</h4>
+              <div class="adapter">ReferenceModelTrainer</div>
+              <div class="desc">RandomForestRegressor on one (region, sku) slice. Pickled to <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">${volume}/reference_model/model.pkl</code> — ~5MB target.</div>
+            </div>
+            <div class="stage">
+              <div class="num">STAGE 3+4</div>
+              <h4>Broadcast + simulate</h4>
+              <div class="adapter">TrainingSimulator</div>
+              <div class="desc">Broadcasts bytes; pandas_udf's <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">model_training_fn</code> seam emits one TrainedModelRecord per row.</div>
+            </div>
+            <div class="stage">
+              <div class="num">STAGE 4b</div>
+              <h4>Persist run plan</h4>
+              <div class="adapter">DeltaRunPlanRepository</div>
+              <div class="desc">Writes Delta table partitioned by region. Streamed back via <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">toLocalIterator</code> — driver never holds it all.</div>
+            </div>
+            <div class="stage">
+              <div class="num">STAGE 5</div>
+              <h4>Log to MLflow</h4>
+              <div class="adapter">*LoggingStrategy</div>
+              <div class="desc">Driver-side <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">ThreadPoolExecutor</code>. One experiment per region. <b>This is the benchmark.</b></div>
+            </div>
+          </div>
+
+          <div class="dataflow">
+            <div class="df-card">
+              <div class="ttl">DemandRecord</div>
+              <div class="desc">region, sku, date, demand, price, day_of_week, promotion, inventory · 9 cols · all faker-driven via default_factory</div>
+            </div>
+            <div class="df-card">
+              <div class="ttl">TrainedModelRecord</div>
+              <div class="desc">region, sku, model_name, model_blob_bytes · params (map&lt;str,str&gt;) · metrics (map&lt;str,float&gt;) · 10 mock of each</div>
+            </div>
+            <div class="df-card">
+              <div class="ttl">Run plan (Delta)</div>
+              <div class="desc">1.5M rows · partitioned by region · schema derived from TrainedModelRecord via <code style="color:#6cd3a0">.spark_schema()</code></div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">orchestrator</span><span class="val">src/main.py</span></div>
+          <div class="spec-block"><span class="lbl">notebook</span><span class="val">notebooks/demo.ipynb</span></div>
+          <div class="spec-block"><span class="lbl">seam for real training</span><span class="val"><span class="signal">model_training_fn</span></span></div>
+          <div class="spec-block"><span class="lbl">timed step</span><span class="val">LoggingMetrics.elapsed_seconds</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 5 — THREE LOGGING STRATEGIES (the heart)
+         ================================================================ -->
+    <section class="slide" data-label="Three logging strategies">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§04 · strategies</span>
+            <span>same port, three trade-offs</span>
+            <span class="arrow">→</span>
+            <span>--strategy &lt;name&gt;</span>
+          </div>
+          <div class="memo-right">slide 05 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">three logging strategies</div>
+            <h2 class="section-title">One port. <em>Three shapes.</em> Picked at runtime.</h2>
+            <p class="section-dek">Every strategy implements <code>ModelLoggingStrategyPort</code> and consumes the same run-plan Delta table. The trade-off they expose: <b>run-count vs artifact-count vs hierarchy depth</b>. Pick the one that fits your scale and your audience's debugging needs.</p>
+          </div>
+
+          <div class="strategies">
+            <div class="strat">
+              <span class="pill default">default · recommended</span>
+              <h4>Collapsed SKU</h4>
+              <div class="slug">--strategy collapsed_sku</div>
+              <div class="hier">region <span class="arr">→</span> sku <span class="arr">(leaf)</span></div>
+              <div class="stats">
+                <div><div class="k">runs / experiment</div><div class="v good">~100k</div></div>
+                <div><div class="k">artifacts / region</div><div class="v good">1 bundle</div></div>
+                <div><div class="k">tracking API calls</div><div class="v good">low</div></div>
+                <div><div class="k">cap headroom</div><div class="v good">5× safe</div></div>
+              </div>
+              <div class="when">One nested SKU run with <b>namespaced</b> <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">model.*</code> params/metrics. One Parquet bundle artifact per region. Collapses 1.5M runs to ~100k.</div>
+            </div>
+
+            <div class="strat">
+              <span class="pill compare">strict approach 3</span>
+              <h4>Nested Model</h4>
+              <div class="slug">--strategy nested_model</div>
+              <div class="hier">region <span class="arr">→</span> sku <span class="arr">→</span> model</div>
+              <div class="stats">
+                <div><div class="k">runs / experiment</div><div class="v warn">~400k</div></div>
+                <div><div class="k">artifacts / region</div><div class="v">1 bundle</div></div>
+                <div><div class="k">tracking API calls</div><div class="v warn">high</div></div>
+                <div><div class="k">cap headroom</div><div class="v warn">tight</div></div>
+              </div>
+              <div class="when">3-level nesting honors the PRD literally. With <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">--per-model-artifact</code> on: <b>~12h</b> at full scale (illustrates worst case).</div>
+            </div>
+
+            <div class="strat">
+              <span class="pill baseline">baseline · approach 1</span>
+              <h4>Region Artifact Only</h4>
+              <div class="slug">--strategy region_artifact_only</div>
+              <div class="hier">region <span class="arr">(leaf)</span></div>
+              <div class="stats">
+                <div><div class="k">runs / experiment</div><div class="v good">1</div></div>
+                <div><div class="k">artifacts / region</div><div class="v good">1 table</div></div>
+                <div><div class="k">tracking API calls</div><div class="v good">~5</div></div>
+                <div><div class="k">elapsed</div><div class="v good">sub-minute</div></div>
+              </div>
+              <div class="when">5 runs total. All model metadata flattened into one Parquet table per region. <b>Loses hierarchy</b> — max throughput baseline only.</div>
+            </div>
+          </div>
+
+          <div class="strat-swap">swap via <code>--strategy &lt;collapsed_sku | nested_model | region_artifact_only&gt;</code> · no code change</div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">port</span><span class="val">ports/model_logging_strategy.py</span></div>
+          <div class="spec-block"><span class="lbl">consumes</span><span class="val">DeltaRunPlanRepository · streams by region</span></div>
+          <div class="spec-block"><span class="lbl">concurrency</span><span class="val">driver ThreadPoolExecutor · <span class="signal">16</span> default</span></div>
+          <div class="spec-block"><span class="lbl">runtime select</span><span class="val">--strategy CLI · widget · bundle var</span></div>
+        </footer>
+      </div>
+    </section>
+
+
+    <!-- ================================================================
+         SLIDE 06 — UC_TABLE STRATEGY: N exps × 1 run × tags → UC + Genie
+         ================================================================ -->
+    <section class="slide" data-label="uc_table strategy">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§05 · uc_table</span>
+            <span>N experiments × 1 run · tagged to UC</span>
+            <span class="arrow">→</span>
+            <span>15 mlflow runs at 1M models</span>
+          </div>
+          <div class="memo-right">slide 06 / 12</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">uc_table strategy</div>
+            <h2 class="section-title">MLflow holds <em>pointers</em>. Unity Catalog holds the data.</h2>
+            <p class="section-dek">Each region exposes <b>N deployable serving endpoints</b>. Each endpoint is exactly <b>one MLflow run</b>, tagged with pointers to the artifact table, parquet bundle, and Genie space. The tracking API ceiling becomes irrelevant — at 1.5M models we still create only <span class="signal-num">15</span> MLflow runs total.</p>
+          </div>
+          <div class="uctable-grid">
+            <div class="uc-side mlflow">
+              <div class="side-eyebrow">mlflow tracking</div>
+              <h4>15 deployable runs</h4>
+              <div class="kv"><span class="k">experiments / region</span><span class="v signal-num">3</span></div>
+              <div class="kv"><span class="k">runs / experiment</span><span class="v signal-num">1</span></div>
+              <div class="kv"><span class="k">total at any scale</span><span class="v signal-num">15</span></div>
+              <div class="tag-list">
+                <div class="tag-lbl">each run carries 3 tags:</div>
+                <div class="tag-pill"><code>model_bundle_uri</code></div>
+                <div class="tag-pill"><code>demand_forecasting_table</code></div>
+                <div class="tag-pill"><code>genie_space_id</code></div>
+              </div>
+            </div>
+            <div class="uc-side uc">
+              <div class="side-eyebrow">unity catalog</div>
+              <h4>3 typed surfaces</h4>
+              <div class="uc-item">
+                <div class="uc-k">delta table</div>
+                <div class="uc-v"><code>demand_forecasting_artifacts</code></div>
+                <div class="uc-note">(region, sku, model_name, rmse, mape, r2, params, metrics, logged_at) · SQL-queryable system of record</div>
+              </div>
+              <div class="uc-item">
+                <div class="uc-k">parquet bundles</div>
+                <div class="uc-v"><code>/Volumes/.../&lt;region&gt;/bundle_parquet/</code></div>
+                <div class="uc-note">5 per-region bundles · partitioned by <code>bucket</code> · 16MB row groups · per-SKU serving lookup</div>
+              </div>
+              <div class="uc-item">
+                <div class="uc-k">genie space</div>
+                <div class="uc-v"><code>Demand Forecasting Insights</code></div>
+                <div class="uc-note">natural-language query over the delta table · seeded with 9 example questions + canned SQL · column comments propagated from <code>Annotated[T, "…"]</code> on the dataclass</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">strategy</span><span class="val">UCTableLoggingStrategy</span></div>
+          <div class="spec-block"><span class="lbl">tracking api calls</span><span class="val signal">15 total</span></div>
+          <div class="spec-block"><span class="lbl">per-sku data</span><span class="val">Delta table + parquet bundle</span></div>
+          <div class="spec-block"><span class="lbl">query path</span><span class="val">SQL · Genie · PyArrow lookup</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 07 — BUNDLE PARQUET WRITE DESIGN
+         ================================================================ -->
+    <section class="slide" data-label="Bundle parquet write design">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§06 · bundle write</span>
+            <span>bucketed · sorted · memory-bounded</span>
+            <span class="arrow">→</span>
+            <span>scales to 100k+ per region</span>
+          </div>
+          <div class="memo-right">slide 07 / 12</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">bundle write</div>
+            <h2 class="section-title">Three knobs. <em>One rule.</em></h2>
+            <p class="section-dek">Per-region parquet bundles backed by Unity Catalog Volumes. The structural rule: <b>multiple files per bucket dir with non-overlapping sku ranges</b> — so PyArrow row-group skipping works file-by-file at read time. Three knobs control where the design sits between write memory, read latency, and dir count.</p>
+          </div>
+          <div class="knobs-grid">
+            <div class="knob">
+              <div class="knob-num">64</div>
+              <div class="knob-label">bucket_count</div>
+              <div class="knob-desc">read-side dir fan-out · 64 was the sweet spot from iter sweep — more dirs hurt <code>load_context</code> (PyArrow enumeration); fewer dirs hurt row-group skipping at scale</div>
+            </div>
+            <div class="knob">
+              <div class="knob-num">2<span class="knob-unit">GB</span></div>
+              <div class="knob-label">target_bytes_per_task</div>
+              <div class="knob-desc">per-Spark-task memory bound · <code>n_partitions = max(bucket_count, total_bytes / target)</code> · keeps Python workers safe regardless of N_SKU</div>
+            </div>
+            <div class="knob">
+              <div class="knob-num">16<span class="knob-unit">MB</span></div>
+              <div class="knob-label">parquet.block.size</div>
+              <div class="knob-desc">row group size · Spark default 128MB → 16MB · cold lookup reads ONE row group, so smaller = less IO per query · ~4 model blobs per group</div>
+            </div>
+          </div>
+          <div class="write-code">
+<pre>plan_df
+  .withColumn("bucket", expr("cast(substring(sku,5,10) as int) % 64"))
+  .<span class="hl">repartitionByRange</span>(n_partitions, "bucket", "sku")    <span class="cmt"># range-partition by (bucket, sku)</span>
+  .<span class="hl">sortWithinPartitions</span>("bucket", "sku")                <span class="cmt"># local sort → ordered row groups (critical!)</span>
+  .write
+    .partitionBy("bucket")                              <span class="cmt"># Hive-style bucket=N dirs</span>
+    .option("parquet.block.size", 16 * 1024 * 1024)
+    .parquet(bundle_uri)</pre>
+          </div>
+          <div class="write-note"><b>Critical pairing:</b> <code>repartitionByRange</code> alone doesn't sort WITHIN partitions. Skipping the explicit <code>sortWithinPartitions</code> takes cold p50 from <span class="signal-num">784 ms</span> to <span class="signal-num">12,140 ms</span> at 10k — row groups become unsorted and PyArrow has to scan the whole file.</div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">file</span><span class="val">adapters/logging/uc_table.py</span></div>
+          <div class="spec-block"><span class="lbl">config</span><span class="val">domains.entities.WorkloadBudget</span></div>
+          <div class="spec-block"><span class="lbl">layout</span><span class="val">bucket=N/ · multiple files · non-overlapping</span></div>
+          <div class="spec-block"><span class="lbl">memory bound</span><span class="val signal">explicit, not derived</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 08 — BUNDLE PARQUET READ APPROACHES
+         ================================================================ -->
+    <section class="slide" data-label="Bundle parquet read approaches">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§07 · bundle read</span>
+            <span>pyarrow · lru_cache · footer stats</span>
+            <span class="arrow">→</span>
+            <span>two patterns ship</span>
+          </div>
+          <div class="memo-right">slide 08 / 12</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">bundle read</div>
+            <h2 class="section-title">Two patterns. <em>Pick by startup cost.</em></h2>
+            <p class="section-dek">Both are <code>mlflow.pyfunc.PythonModel</code> classes — drop-in for Databricks Model Serving. Both use <code>lru_cache</code> for warm hits. The split is how cold lookup is resolved: <b>filter pushdown</b> (zero startup cost, scanning per-query) vs <b>pre-loaded footer index</b> (one-time startup, near-instant per-query).</p>
+          </div>
+          <div class="read-grid">
+            <div class="read-side primary">
+              <span class="pill default">recommended starting point</span>
+              <h4>PyArrowLruModel</h4>
+              <div class="slug">approach 1 · filter pushdown</div>
+              <div class="read-code"><pre>ds.dataset(bundle_uri, partitioning="hive")
+  .to_table(
+    filter=(field("bucket") == bucket) &amp;
+           (field("sku") == sku),
+    columns=["model_blob_bytes"],
+  )</pre></div>
+              <div class="kv-row">
+                <div class="kv-c"><div class="k">cold p50 @ 10k</div><div class="v good">784 ms</div></div>
+                <div class="kv-c"><div class="k">cold p50 @ 20k</div><div class="v good">839 ms</div></div>
+                <div class="kv-c"><div class="k">warm p50</div><div class="v good">33 ms</div></div>
+                <div class="kv-c"><div class="k">load_context</div><div class="v good">~2.6 s</div></div>
+              </div>
+              <div class="when">PyArrow opens the bucket dir on each query, reads parquet footers, applies row-group skipping via min/max stats. Pays a small per-file cost; zero startup cost.</div>
+            </div>
+            <div class="read-side secondary">
+              <span class="pill compare">faster cold, longer startup</span>
+              <h4>PyArrowFooterIndexModel</h4>
+              <div class="slug">approach 1b · pre-loaded index</div>
+              <div class="read-code"><pre>at load_context:
+  for each parquet file:
+    for each row_group:
+      stats = footer.row_group(rg).column("sku").stats
+      entries.append((stats.min, stats.max, file, rg))
+  entries.sort()
+
+per lookup:
+  idx = bisect(sku_mins, sku)
+  return read_row_group(entries[idx].file,
+                        entries[idx].rg)</pre></div>
+              <div class="kv-row">
+                <div class="kv-c"><div class="k">cold p50 @ 10k</div><div class="v signal-num">186 ms</div></div>
+                <div class="kv-c"><div class="k">cold p95 @ 10k</div><div class="v signal-num">999 ms</div></div>
+                <div class="kv-c"><div class="k">warm p50</div><div class="v good">33 ms</div></div>
+                <div class="kv-c"><div class="k">load_context</div><div class="v warn">scales w/ file count</div></div>
+              </div>
+              <div class="when">Builds in-memory <code>(sku_min, sku_max, file, rg_idx)</code> index at startup. Per-lookup is binary search + one row-group read. <b>4× faster</b> than filter pushdown at 10k.</div>
+            </div>
+          </div>
+          <div class="read-note">A third class — <code>LakebaseLookupModel</code> — ships as code only. Sub-10 ms point lookups via managed Postgres when serving traffic exceeds what UC Volume FUSE handles under concurrency.</div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">approach 1</span><span class="val">notebooks/demo.ipynb cell 31</span></div>
+          <div class="spec-block"><span class="lbl">approach 1b</span><span class="val">notebooks/demo.ipynb cell 32</span></div>
+          <div class="spec-block"><span class="lbl">lakebase</span><span class="val">adapters/serving/lakebase.py</span></div>
+          <div class="spec-block"><span class="lbl">cache</span><span class="val"><code>functools.lru_cache</code> · bounded</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 09 — SCALING PROOF: COLD LATENCY AT 1k / 10k / 20k
+         ================================================================ -->
+    <section class="slide" data-label="Scaling proof">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§08 · scaling proof</span>
+            <span>same code · 20× scale range</span>
+            <span class="arrow">→</span>
+            <span>cold p50 grew only 29%</span>
+          </div>
+          <div class="memo-right">slide 09 / 12</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">measured · 6-worker m5d.2xlarge cluster</div>
+            <h2 class="section-title">300k models. <em>Sub-second</em> cold lookup.</h2>
+            <p class="section-dek">Bundle write + serving benchmark, same hardware, same code path, scaling SKU count per region. The cold-lookup curve is what makes serving viable at scale: <b>20× more data → 29% slower lookup</b>. Row-group skipping + bounded-memory write are doing the work.</p>
+          </div>
+          <div class="scaling-grid">
+            <div class="chart">
+              <div class="chart-row">
+                <div class="chart-lbl">1k SKU/region</div>
+                <div class="chart-bar"><div class="bar" style="width: 7.7%;"><span class="bar-val">650 ms</span></div></div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-lbl">10k SKU/region</div>
+                <div class="chart-bar"><div class="bar" style="width: 9.3%;"><span class="bar-val">784 ms</span></div></div>
+              </div>
+              <div class="chart-row">
+                <div class="chart-lbl">20k SKU/region</div>
+                <div class="chart-bar"><div class="bar" style="width: 10.0%;"><span class="bar-val">839 ms</span></div></div>
+              </div>
+              <div class="chart-axis"><span>0</span><span>2 s</span><span>4 s</span><span>6 s</span><span>8 s</span></div>
+              <div class="chart-cap">cold lookup p50 · single SKU model load · PyArrowLruModel · UC Volume FUSE</div>
+            </div>
+            <div class="scaling-tbl">
+              <table>
+                <tr><th>scale</th><th>cold p50</th><th>cold p95</th><th>warm p50</th><th>strategy write</th><th>total models</th></tr>
+                <tr><td>1k × 5</td><td>650 ms</td><td>1,244 ms</td><td>31 ms</td><td>76 s</td><td>15k</td></tr>
+                <tr><td>10k × 5</td><td>784 ms</td><td>2,531 ms</td><td>33 ms</td><td>722 s</td><td>150k</td></tr>
+                <tr class="best"><td>20k × 5</td><td>839 ms</td><td>2,335 ms</td><td>33 ms</td><td>3,540 s</td><td>300k</td></tr>
+              </table>
+            </div>
+          </div>
+          <div class="scaling-headlines">
+            <div class="hl-num"><div class="n signal-num">300k</div><div class="l">models · logged + retrievable at 20k</div></div>
+            <div class="hl-num"><div class="n signal-num">839 ms</div><div class="l">cold p50 · single-SKU load at 20k</div></div>
+            <div class="hl-num"><div class="n signal-num">+29%</div><div class="l">cold-p50 growth · 1k → 20k (20× scale)</div></div>
+            <div class="hl-num"><div class="n signal-num">15</div><div class="l">mlflow runs · at any data scale</div></div>
+          </div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">cluster</span><span class="val">6× m5d.2xlarge workers (32GB) · i3.4xlarge driver</span></div>
+          <div class="spec-block"><span class="lbl">read class</span><span class="val">PyArrowLruModel · functools.lru_cache(512)</span></div>
+          <div class="spec-block"><span class="lbl">samples</span><span class="val">100 distinct cold SKUs · 10 warm × 10 reps</span></div>
+          <div class="spec-block"><span class="lbl">ceiling</span><span class="val signal">extrapolates to 100k+ per region</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 6 — CONFIGURATION
+         ================================================================ -->
+    <section class="slide" data-label="Configuration">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§05 · config</span>
+            <span>sizing + tuning</span>
+            <span class="arrow">→</span>
+            <span>two domain entities</span>
+          </div>
+          <div class="memo-right">slide 10 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">configuration story</div>
+            <h2 class="section-title">Sizing <em>vs</em> tuning. Two entities, three drivers.</h2>
+            <p class="section-dek">Scope (how big?) and tuning (how hard do we push the workspace?) are separate concerns. Same values reachable from CLI args, notebook widgets, and <code>databricks.yml</code> bundle variables — pick the entry point that fits your workflow.</p>
+          </div>
+
+          <div class="config-grid">
+            <div class="config-card left">
+              <h4>GenerationSpec</h4>
+              <div class="sub">sizing · scope of the demo</div>
+<pre><span class="kw">spec</span> = GenerationSpec.<span class="kw">of</span>(
+    n_regions   = <span class="num">5</span>,         <span class="cm"># 1..10 canonical</span>
+    n_skus      = <span class="num">100_000</span>,   <span class="cm"># per region</span>
+    rows_per_sku= <span class="num">100</span>,       <span class="cm"># demand observations</span>
+)
+<span class="cm"># → 50M demand rows, 1.5M run-plan entries</span></pre>
+              <div class="controls"><b>Dials the workload.</b> Try 5 × 100k × 100 for the full benchmark, or 2 × 100 × 10 for a smoke test in seconds.</div>
+            </div>
+
+            <div class="config-card right">
+              <h4>LoggingConfig</h4>
+              <div class="sub">tuning · how hard we push</div>
+<pre><span class="kw">LoggingConfig</span>(
+    concurrency     = <span class="num">16</span>,         <span class="cm"># thread pool</span>
+    async_logging   = <span class="kw">True</span>,
+    http_retries    = <span class="num">7</span>,
+    http_timeout    = <span class="num">120</span>,
+    run_plan_table  = <span class="str">"users.akil_thomas.run_plan"</span>,
+    artifact_volume = <span class="str">"/Volumes/users/.../mlflow_artifacts"</span>,
+)</pre>
+              <div class="controls"><b>Tunes the bandwidth.</b> Higher concurrency reaches the 120 RPS tracking ceiling faster; retries + timeout absorb workspace HTTP jitter.</div>
+            </div>
+          </div>
+
+          <div class="config-source">
+            <div class="src"><span class="k">cli args</span>src/main.py · argparse</div>
+            <div class="src"><span class="k">notebook</span>widgets in notebooks/demo.ipynb</div>
+            <div class="src"><span class="k">bundle vars</span>databricks.yml · ${var.catalog} ${var.schema} ${var.demand_table}</div>
+          </div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">entities</span><span class="val">GenerationSpec · LoggingConfig</span></div>
+          <div class="spec-block"><span class="lbl">first test</span><span class="val">5 × 100k × 100 = <span class="signal">1.5M</span></span></div>
+          <div class="spec-block"><span class="lbl">smoke test</span><span class="val">2 × 100 × 10 = <span class="signal">6k</span></span></div>
+          <div class="spec-block"><span class="lbl">strategy</span><span class="val">--strategy collapsed_sku (default)</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 7 — DEPLOYMENT (DATABRICKS ASSET BUNDLE)
+         ================================================================ -->
+    <section class="slide" data-label="Deployment">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§06 · deploy</span>
+            <span>databricks asset bundle</span>
+            <span class="arrow">→</span>
+            <span>three resources</span>
+          </div>
+          <div class="memo-right">slide 11 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">deployment · databricks asset bundle</div>
+            <h2 class="section-title">Three resources, <em>one command.</em></h2>
+            <p class="section-dek">The bundle ships a job, an all-purpose cluster, and the wheel + workspace files in one deploy. uv-managed dependencies are exported to <code>requirements.txt</code> and installed by the notebook via <code>%pip install -r ../requirements.txt</code>. Per-region experiments are created at runtime by the strategy adapters.</p>
+          </div>
+
+          <div class="bundle">
+            <div class="bundle-row job">
+              <div class="lbl">Job<span class="file">resources/jobs.yml</span></div>
+              <div class="what"><b><code>spark_python_task</code></b> running <code>src/main.py</code> on its own job cluster. Reads parameters from <code>databricks.yml</code> variables (strategy, regions, skus, concurrency, table names). Wheel installed as a task library.</div>
+              <div class="specs-mini">
+                <div><span class="k">task type:</span> <span class="v">spark_python_task</span></div>
+                <div><span class="k">cluster:</span> <span class="v">job cluster · DBR 15.4 ML · Photon</span></div>
+                <div><span class="k">library:</span> <span class="v">dist/*.whl</span></div>
+              </div>
+            </div>
+
+            <div class="bundle-row cluster">
+              <div class="lbl">Cluster<span class="file">resources/clusters.yml</span></div>
+              <div class="what">All-purpose cluster for the notebook. Workers on <b>m5d.2xlarge</b> (32GB + 300GB NVMe instance-store — Spark spill needs the SSD at 50M-row scale). Driver on <b>i3.4xlarge</b> (16 vCPU / 122GB) for the ThreadPoolExecutor fanout.</div>
+              <div class="specs-mini">
+                <div><span class="k">workers:</span> <span class="v">6 × m5d.2xlarge · on-demand</span></div>
+                <div><span class="k">driver:</span> <span class="v">i3.4xlarge · 16 vCPU / 122 GB</span></div>
+                <div><span class="k">env vars:</span> <span class="v">DISABLE_MLFLOWDBFS=true</span></div>
+              </div>
+            </div>
+
+            <div class="bundle-row bundle">
+              <div class="lbl">Bundle<span class="file">databricks.yml</span></div>
+              <div class="what">Single source of truth for catalog/schema/strategy/scale defaults. <code>artifacts:</code> block builds the wheel via <code>uv build --wheel</code>. <code>sync</code> uploads <code>src/</code>, <code>notebooks/</code>, <code>requirements.txt</code> to the workspace.</div>
+              <div class="specs-mini">
+                <div><span class="k">variables:</span> <span class="v">catalog, schema, demand_table, strategy, regions, skus, concurrency</span></div>
+                <div><span class="k">artifacts:</span> <span class="v">multimodel_wheel via uv build</span></div>
+                <div><span class="k">profile:</span> <span class="v">e2-field-demo-west</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bundle-cmd">
+            <code>databricks --profile e2-field-demo-west bundle deploy -t dev</code>
+          </div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">deps</span><span class="val">uv.lock → requirements.txt (cluster install)</span></div>
+          <div class="spec-block"><span class="lbl">experiments</span><span class="val">created at runtime · Demand_Forecasting-&lt;REGION&gt;</span></div>
+          <div class="spec-block"><span class="lbl">uc volume</span><span class="val">bootstrap cell · CREATE VOLUME IF NOT EXISTS</span></div>
+          <div class="spec-block"><span class="lbl">idempotent</span><span class="val"><span class="signal">yes</span> · drop & re-run safe</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 8 — RUN IT YOURSELF
+         ================================================================ -->
+    <section class="slide" data-label="Run it yourself">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§07 · run</span>
+            <span>deploy · run · iterate</span>
+            <span class="arrow">→</span>
+            <span>commands + next steps</span>
+          </div>
+          <div class="memo-right">slide 12 / 12</div>
+        </header>
+
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">run it yourself</div>
+            <h2 class="section-title">From <em>git clone</em> to first benchmark.</h2>
+            <p class="section-dek">The demo is idempotent — schema, volume, and tables are created on first run via <code>CREATE … IF NOT EXISTS</code>. Drop the run-plan table and re-run to reseed the benchmark. Per-experiment runs are immutable; subsequent runs append, never overwrite.</p>
+          </div>
+
+          <div class="run-grid">
+            <div class="run-block">
+              <h4>Three commands.</h4>
+              <div class="run-cmd">
+<span class="cm"># 1. Build deps lockfile (one-time)</span>
+<span class="prompt">$</span>uv export --format requirements-txt <span class="arg">\</span>
+   --no-hashes --no-emit-project <span class="arg">\</span>
+   --no-dev &gt; requirements.txt
+
+<span class="cm"># 2. Deploy bundle</span>
+<span class="prompt">$</span>databricks --profile <span class="arg">e2-field-demo-west</span> <span class="arg">\</span>
+   bundle deploy -t dev
+
+<span class="cm"># 3. Run the job</span>
+<span class="prompt">$</span>databricks --profile <span class="arg">e2-field-demo-west</span> <span class="arg">\</span>
+   bundle run multimodel_registration -t dev
+              </div>
+            </div>
+
+            <div class="run-block">
+              <h4>What to try next.</h4>
+              <ul class="next-list">
+                <li>Run the notebook interactively — every cell is annotated; widgets let you dial scope without redeploying.</li>
+                <li>Swap <code>--strategy nested_model</code> to see the run-count vs throughput trade-off live.</li>
+                <li>Replace <code>model_training_fn</code> in TrainingSimulator with a real <code>fit() → pickle.dumps</code> to make it an actual distributed trainer.</li>
+                <li>Add a new logging strategy: implement <code>ModelLoggingStrategyPort</code>, register it in <code>main.py</code>, deploy.</li>
+              </ul>
+              <div class="contact">
+                <span class="k">contact</span>
+                Akil Thomas · akil.thomas@databricks.com<br>
+                dbrx-multimodel-deployment-demo · v0.1.0
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">repo</span><span class="val">dbrx-multimodel-deployment-demo</span></div>
+          <div class="spec-block"><span class="lbl">workspace</span><span class="val">e2-demo-field-eng.cloud.databricks.com</span></div>
+          <div class="spec-block"><span class="lbl">prd</span><span class="val">prds/PRD_demo.md</span></div>
+          <div class="spec-block"><span class="lbl">end</span><span class="val"><span class="signal">memo · 001 · fin</span></span></div>
+        </footer>
+      </div>
+    </section>
+
+  </div>
+  <div class="deck-counter"><span class="cur">01</span><span class="sep">/</span><span class="tot">08</span></div>
+</div>
+
+<script>
+/* =====================================================================
+   Deck runtime: scaling, keyboard nav, click nav, slide counter.
+   Single-file, no dependencies.
+   ===================================================================== */
+(function() {
+  const stage = document.querySelector('.deck-stage');
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const counter = {
+    cur: document.querySelector('.deck-counter .cur'),
+    tot: document.querySelector('.deck-counter .tot'),
+  };
+  let idx = 0;
+  counter.tot.textContent = String(slides.length).padStart(2, '0');
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function fit() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const s = Math.min(vw / 1920, vh / 1080);
+    const left = (vw - 1920 * s) / 2;
+    const top = (vh - 1080 * s) / 2;
+    stage.style.transform = `translate(${left}px, ${top}px) scale(${s})`;
+  }
+
+  function show(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    if (i === idx) return;
+    slides[idx].classList.remove('active');
+    slides[i].classList.add('active');
+    // Force animation reset by reflow trick (so re-entering replays animations).
+    void slides[i].offsetWidth;
+    idx = i;
+    counter.cur.textContent = pad(idx + 1);
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) {}
+  }
+
+  function next() { show(idx + 1); }
+  function prev() { show(idx - 1); }
+
+  document.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { next(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { prev(); e.preventDefault(); }
+    else if (e.key === 'Home') { show(0); e.preventDefault(); }
+    else if (e.key === 'End') { show(slides.length - 1); e.preventDefault(); }
+    else if (/^[0-9]$/.test(e.key)) {
+      const n = e.key === '0' ? 9 : parseInt(e.key, 10) - 1;
+      if (n < slides.length) show(n);
+    }
+  });
+
+  // Tap zones: left third = back, right third = forward (mobile).
+  document.addEventListener('click', (e) => {
+    const w = window.innerWidth;
+    if (e.clientX < w / 3) prev();
+    else if (e.clientX > (2 * w) / 3) next();
+  });
+
+  window.addEventListener('resize', fit);
+
+  // Restore from hash on load (#3 → slide 3, 1-indexed).
+  const h = (location.hash || '').match(/^#(\d+)$/);
+  if (h) {
+    const n = parseInt(h[1], 10) - 1;
+    if (n >= 0 && n < slides.length) { slides[0].classList.remove('active'); slides[n].classList.add('active'); idx = n; counter.cur.textContent = pad(idx + 1); }
+  }
+
+  fit();
+})();
+</script>
+</body>
+</html>

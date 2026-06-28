@@ -1,0 +1,50 @@
+# All-purpose cluster for interactive development against the multimodel demo.
+# Use it from the Databricks workspace UI / notebooks/demo.py. The job in
+# jobs.yml still spins up its own job-scoped cluster on each run.
+resources:
+  clusters:
+    demo_multimodel_logging:
+      cluster_name: demo-dbrx-multimodel-logging-cluster
+      kind: CLASSIC_PREVIEW
+      spark_version: 17.3.x-scala2.13
+      # Workers: m5d.2xlarge = 8 vCPU / 32 GB RAM + 1× 300 GB NVMe SSD instance-store.
+      # The instance-store SSD is critical for Spark shuffle/spill: at 50M demand
+      # rows + 1.5M run-plan rows with 5MB blobs, plain EBS-only m5.2xlarge fills
+      # the root volume and the simulator crashes with "No space left on device".
+      node_type_id: m5d.2xlarge
+      # Driver bumped to i3.4xlarge — the driver runs the ThreadPoolExecutor
+      # that fans out the MLflow tracking-API calls during logging, so more
+      # cores + RAM here translate directly into higher sustained parallelism
+      # before HTTP-pool exhaustion.
+      driver_node_type_id: i3.4xlarge
+      num_workers: 6
+      is_single_node: false
+      autotermination_minutes: 120
+      data_security_mode: DATA_SECURITY_MODE_AUTO
+      single_user_name: akil.thomas@databricks.com
+      runtime_engine: STANDARD
+      use_ml_runtime: true
+      aws_attributes:
+        zone_id: auto
+        # ON_DEMAND (no spot) — workers run uninterrupted; preferred for the
+        # benchmark cluster where preemption mid-run would skew measurements.
+        availability: ON_DEMAND
+      spark_env_vars:
+        # Routes MLflow artifact uploads through the Python HTTP path with
+        # thread-safe creds (instead of mlflowdbfs, which 401s under concurrency).
+        DISABLE_MLFLOWDBFS: "true"
+        # urllib3 connection pool — must be ≥ concurrency, else threads block
+        # on socket allocation and work piles up on the driver (memory pressure).
+        # 32 = 2× the default 16-thread concurrency for headroom.
+        MLFLOW_HTTP_POOL_CONNECTIONS: "32"
+        MLFLOW_HTTP_POOL_MAXSIZE: "32"
+        # Retry budget + exponential backoff (2/4/8/16s) absorbs transient
+        # 429/5xx from the workspace tracking server without crashing threads.
+        # MLflow's internal validator caps max_retries at <10 (must be strictly less
+        # than 10, see _validate_max_retries in mlflow/utils/rest_utils.py).
+        MLFLOW_HTTP_REQUEST_MAX_RETRIES: "9"
+        MLFLOW_HTTP_REQUEST_BACKOFF_FACTOR: "2"
+        MLFLOW_HTTP_REQUEST_TIMEOUT: "120"
+        # Belt + suspenders with the notebook's mlflow.tracing.disable() call —
+        # env var runs pre-import, can't be missed by import ordering.
+        MLFLOW_ENABLE_ASYNC_TRACE_LOGGING: "false"

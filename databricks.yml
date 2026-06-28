@@ -1,0 +1,55 @@
+# Databricks Asset Bundle for the multi-model registration demo.
+# Builds a wheel from this repo and runs the CLI as a python_wheel_task on
+# serverless compute. Targets the e2-field-demo-west workspace by default.
+bundle:
+  name: dbrx-multimodel-registration
+
+include:
+  - resources/*.yml
+
+artifacts:
+  multimodel_wheel:
+    type: whl
+    path: .
+    build: uv build --wheel || python -m build --wheel
+
+variables:
+  catalog:
+    description: UC catalog for the run-plan table and artifact volume.
+    default: users
+  schema:
+    description: UC schema (created if absent) under `catalog`.
+    default: akil_thomas
+  demand_table:
+    description: |
+      Unqualified table name for the synthetic demand-data sink. Fully qualified
+      at runtime as `${var.catalog}.${var.schema}.${var.demand_table}`.
+    default: synthetic_demand
+  strategy:
+    description: Logging strategy (collapsed_sku | nested_model | region_artifact_only).
+    default: collapsed_sku
+  regions:
+    description: Number of regions (1..5).
+    default: 5
+  skus:
+    description: SKU count per region.
+    default: 1000
+  concurrency:
+    description: Driver-side ThreadPoolExecutor size (per region).
+    default: 8
+  n_shards:
+    description: Per-region sub-experiment shards (probes per-experiment write serialization).
+    default: 1
+  disable_async_logging:
+    description: If "true", skip mlflow.config.enable_async_logging() (probes async-flusher bottleneck).
+    default: "false"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://e2-demo-field-eng.cloud.databricks.com
+      profile: e2-field-demo-west
+    run_as:
+      user_name: akil.thomas@databricks.com

@@ -1,0 +1,125 @@
+# Job that runs src/main.py — the demo entrypoint — to generate synthetic
+# data, simulate training, persist a run-plan Delta table, and log to MLflow.
+#
+# Uses a small classic Photon cluster (DBR 15.4 LTS ML); the ML runtime
+# bundles mlflow + scikit-learn + pyarrow + pandas, so the wheel install is
+# fast (only Faker is pulled in fresh). The wheel installs the importable
+# `dbrx_multimodel_registration` package; main.py imports from it.
+resources:
+  jobs:
+    multimodel_registration:
+      name: "[${bundle.target}] dbrx-multimodel-registration"
+      description: "Logs ~500k MLflow models across 5 region-experiments per Approach 3."
+      max_concurrent_runs: 1
+
+      # Parameter names below MUST match the widget names in notebooks/demo.ipynb —
+      # base_parameters in the notebook_task populates the widget values at run time.
+      # The notebook builds run_plan_table / artifact_volume internally from
+      # catalog + schema + demand_table, so we pass the building blocks, not the
+      # derived strings.
+      parameters:
+        - name: strategy
+          default: ${var.strategy}
+        - name: regions
+          default: "${var.regions}"
+        - name: skus
+          default: "${var.skus}"
+        - name: rows_per_sku
+          default: "100"
+        - name: concurrency
+          default: "${var.concurrency}"
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: demand_table
+          default: ${var.demand_table}
+        - name: n_shards
+          default: "${var.n_shards}"
+        - name: disable_async_logging
+          default: ${var.disable_async_logging}
+
+      # Job cluster spec mirrors resources/clusters.yml (the interactive
+       # all-purpose cluster) so the job runs on the same hardware shape it was
+       # benchmarked on. Critical: aws_attributes.availability = ON_DEMAND.
+       # Previously the workspace default put the driver on SPOT and AWS reaped
+       # it at ~78 min, killing the run mid-stage-5 with INTERNAL_ERROR.
+      job_clusters:
+        - job_cluster_key: registration_cluster
+          new_cluster:
+            spark_version: "17.3.x-scala2.13"
+            # m5d.2xlarge workers: 8 vCPU / 32 GB + 1× 300 GB NVMe instance-store
+            # (needed for Spark shuffle/spill at 5M+ demand rows × 5MB blobs).
+            node_type_id: m5d.2xlarge
+            # i3.4xlarge driver: tested c=8 / c=16 / c=32 across i3.4xl + i3.16xl.
+            # Stage-5 throughput was flat at ~8 SKU/s regardless of driver size or
+            # thread count — server-side per-experiment queueing is the binding
+            # constraint, not driver resources. Bigger driver was wasted spend.
+            driver_node_type_id: i3.4xlarge
+            # 10 workers (was 6) — gives the uc_table strategy more parallelism
+            # for the 5 concurrent per-region bundle writes. At 10k SKU/region
+            # scale on 6 workers, regions finished 2-3 min apart due to executor
+            # saturation; more workers should reduce that spread.
+            num_workers: 10
+            data_security_mode: SINGLE_USER
+            single_user_name: akil.thomas@databricks.com
+            runtime_engine: STANDARD
+            aws_attributes:
+              zone_id: auto
+              # ON_DEMAND for BOTH driver + workers. Spot-reaping the driver
+              # killed run 570300988782873 after 78 min of useful work.
+              availability: ON_DEMAND
+            spark_env_vars:
+              # Critical: routes artifact uploads through HTTP path with
+              # thread-safe credentials. Required for ThreadPoolExecutor
+              # concurrency to not 401-storm on the artifact store.
+              DISABLE_MLFLOWDBFS: "true"
+              # urllib3 connection pool — 2× concurrency for headroom.
+              MLFLOW_HTTP_POOL_CONNECTIONS: "32"
+              MLFLOW_HTTP_POOL_MAXSIZE: "32"
+              # Retries + exponential backoff (2/4/8/16s) for transient 429/5xx.
+              # MLflow caps max_retries at <10 (validate raises on 10).
+              MLFLOW_HTTP_REQUEST_MAX_RETRIES: "9"
+              MLFLOW_HTTP_REQUEST_BACKOFF_FACTOR: "2"
+              MLFLOW_HTTP_REQUEST_TIMEOUT: "120"
+              MLFLOW_ENABLE_ASYNC_TRACE_LOGGING: "false"
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
+              # FAIR scheduler lets the 5 concurrent per-region Spark write
+              # jobs share executor resources instead of queueing FIFO. Big win
+              # for the uc_table strategy's parallel bundle write phase.
+              spark.scheduler.mode: "FAIR"
+
+      tasks:
+        - task_key: register
+          # Use the all-purpose interactive cluster (resources/clusters.yml) so
+          # we skip the ~4 min job_cluster boot on every iteration. Cluster
+          # stays warm 120 min idle. The job_cluster spec above is kept as a
+          # back-up — to use it, swap this line for:
+          #   job_cluster_key: registration_cluster
+          existing_cluster_id: ${resources.clusters.demo_multimodel_logging.id}
+          # Run the demo notebook end-to-end. base_parameters keys become widget
+          # values inside the notebook (dbutils.widgets.get(name)). The notebook
+          # itself derives `run_plan_table` and `artifact_volume` from catalog +
+          # schema + demand_table.
+          #
+          # NO `libraries:` block on purpose:
+          #   - The notebook installs deps itself via `%pip install -r ../requirements.txt`
+          #   - The path-setup cell prepends src/ to sys.path so the
+          #     `dbrx_multimodel_registration` package is importable without
+          #     needing the wheel.
+          #   - Previous wheel-library installs crashed the small i3.2xlarge job
+          #     cluster (INTERNAL_ERROR: cluster terminated during install).
+          notebook_task:
+            notebook_path: ${workspace.file_path}/notebooks/demo
+            base_parameters:
+              strategy: "{{job.parameters.strategy}}"
+              regions: "{{job.parameters.regions}}"
+              skus: "{{job.parameters.skus}}"
+              rows_per_sku: "{{job.parameters.rows_per_sku}}"
+              concurrency: "{{job.parameters.concurrency}}"
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              demand_table: "{{job.parameters.demand_table}}"
+              n_shards: "{{job.parameters.n_shards}}"
+              disable_async_logging: "{{job.parameters.disable_async_logging}}"
