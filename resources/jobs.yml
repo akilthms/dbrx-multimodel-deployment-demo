@@ -62,7 +62,7 @@ resources:
             # saturation; more workers should reduce that spread.
             num_workers: 10
             data_security_mode: SINGLE_USER
-            single_user_name: akil.thomas@databricks.com
+            single_user_name: <your-email>@<your-company>.com
             runtime_engine: STANDARD
             aws_attributes:
               zone_id: auto

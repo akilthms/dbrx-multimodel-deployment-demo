@@ -21,7 +21,7 @@ resources:
       is_single_node: false
       autotermination_minutes: 120
       data_security_mode: DATA_SECURITY_MODE_AUTO
-      single_user_name: akil.thomas@databricks.com
+      single_user_name: <your-email>@<your-company>.com
       runtime_engine: STANDARD
       use_ml_runtime: true
       aws_attributes:

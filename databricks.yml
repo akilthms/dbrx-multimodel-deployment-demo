@@ -18,8 +18,8 @@ variables:
     description: UC catalog for the run-plan table and artifact volume.
     default: users
   schema:
-    description: UC schema (created if absent) under `catalog`.
-    default: akil_thomas
+    description: UC schema (created if absent) under `catalog`. Override per workspace.
+    default: your_schema
   demand_table:
     description: |
       Unqualified table name for the synthetic demand-data sink. Fully qualified
@@ -49,7 +49,7 @@ targets:
     mode: development
     default: true
     workspace:
-      host: https://e2-demo-field-eng.cloud.databricks.com
-      profile: e2-field-demo-west
+      host: https://<your-workspace>.cloud.databricks.com
+      profile: <your-cli-profile>
     run_as:
-      user_name: akil.thomas@databricks.com
+      user_name: <your-email>@<your-company>.com

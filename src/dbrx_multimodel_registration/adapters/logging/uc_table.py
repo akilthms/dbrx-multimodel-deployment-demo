@@ -678,13 +678,16 @@ class UCTableLoggingStrategy:
         question/SQL pairs. This is the schema Genie uses for NL → SQL.
         """
         # Resolve the current-user workspace home for parent_path. Genie spaces
-        # live as workspace objects under a user's namespace.
-        try:
-            me = w.current_user.me()
-            user_name = me.user_name or "akil.thomas@databricks.com"
-        except Exception as e:  # noqa: BLE001
-            log.warning(f"current_user lookup failed: {e}; falling back to hardcoded path")
-            user_name = "akil.thomas@databricks.com"
+        # live as workspace objects under a user's namespace. If the SDK call
+        # fails (rare — typically only when run_as identity is misconfigured),
+        # raise rather than fall back to a stale placeholder.
+        me = w.current_user.me()
+        user_name = me.user_name
+        if not user_name:
+            raise RuntimeError(
+                "WorkspaceClient.current_user.me() returned no user_name; "
+                "Genie space creation requires a workspace user identity."
+            )
         parent_path = f"/Workspace/Users/{user_name}"
 
         # Build the structured space config — see the API schema doc. Note that

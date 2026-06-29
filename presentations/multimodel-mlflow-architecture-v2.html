@@ -1142,6 +1142,46 @@ img, video, canvas, svg { max-width: 100%; max-height: 100%; }
   color: var(--text-soft); margin-top: 8px; line-height: 1.4;
 }
 
+
+/* v2 additions: decision table + future-opt cards + impl map */
+.decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 28px 0 16px; }
+.decision-card { background: var(--bg-elev); border: 1px solid var(--hairline); border-left: 2px solid var(--port); padding: 22px 24px; }
+.decision-card .when { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.decision-card .scenario { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 28px; color: var(--text); letter-spacing: -0.02em; margin: 4px 0 14px; }
+.decision-card .turn { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--signal); margin-bottom: 4px; }
+.decision-card .knob-action { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--code); background: var(--code-soft); padding: 4px 9px; border-radius: 3px; display: inline-block; margin-bottom: 10px; }
+.decision-card .effect { font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text-soft); line-height: 1.5; }
+.decision-card .effect code { font-family: 'JetBrains Mono', monospace; background: var(--code-soft); color: var(--code); padding: 1px 5px; border-radius: 2px; font-size: 12px; }
+.decision-card .effect b { color: var(--text); font-weight: 500; }
+.future-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 26px 0 16px; }
+.future-card { background: var(--bg-elev); border: 1px solid var(--hairline); padding: 22px 24px; position: relative; }
+.future-card.lift-1 { border-left: 2px solid var(--code); }
+.future-card.lift-2 { border-left: 2px solid var(--signal); }
+.future-card.lift-3 { border-left: 2px solid var(--port); }
+.future-card.lift-4 { border-left: 2px solid var(--text-soft); }
+.future-card .lift { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; padding: 3px 9px 4px; border-radius: 2px; display: inline-block; margin-bottom: 8px; }
+.future-card.lift-1 .lift { background: var(--code-soft); color: var(--code); }
+.future-card.lift-2 .lift { background: var(--signal-soft); color: var(--signal); }
+.future-card.lift-3 .lift { background: var(--port-soft); color: var(--port); }
+.future-card.lift-4 .lift { background: rgba(229,225,214,0.08); color: var(--text-soft); }
+.future-card h4 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 26px; color: var(--text); margin: 2px 0 6px; letter-spacing: -0.02em; }
+.future-card .impact { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--signal); margin-bottom: 10px; }
+.future-card .body { font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text-soft); line-height: 1.55; }
+.future-card .body code { font-family: 'JetBrains Mono', monospace; background: var(--code-soft); color: var(--code); padding: 1px 5px; border-radius: 2px; font-size: 12px; }
+.future-card .body b { color: var(--text); font-weight: 500; }
+.impl-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; margin: 26px 0 16px; }
+.impl-files { background: var(--bg-elev); border: 1px solid var(--hairline); padding: 22px 24px; }
+.impl-files h4 { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; font-weight: 500; }
+.impl-files .file-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; padding: 9px 0; border-bottom: 1px dashed var(--hairline); align-items: baseline; }
+.impl-files .file-row:last-child { border-bottom: none; }
+.impl-files .what { font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: var(--text); }
+.impl-files .where { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code); }
+.impl-commands { background: var(--bg-elev); border: 1px solid var(--hairline); border-left: 2px solid var(--signal); padding: 22px 24px; }
+.impl-commands h4 { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 14px; font-weight: 500; }
+.impl-commands pre { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); line-height: 1.7; margin: 0; white-space: pre-wrap; }
+.impl-commands .cmt { color: var(--text-muted); font-style: italic; }
+.impl-commands .pmt { color: var(--signal); }
+
 </style>
 </head>
 <body>
@@ -1149,7 +1189,7 @@ img, video, canvas, svg { max-width: 100%; max-height: 100%; }
   <div class="deck-stage">
 
     <!-- ================================================================
-         SLIDE 1 — TITLE
+         SLIDE 00 — TITLE (v2)
          ================================================================ -->
     <section class="slide title-slide active" data-label="Title">
       <div class="crosshair">
@@ -1159,436 +1199,226 @@ img, video, canvas, svg { max-width: 100%; max-height: 100%; }
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">memo · 001</span>
-            <span>dbrx-multimodel-deployment-demo</span>
+            <span class="tag">memo · 002</span>
+            <span>dbrx-multimodel-deployment-demo · v2</span>
             <span class="arrow">→</span>
-            <span>architecture walkthrough</span>
+            <span>implementation guide</span>
           </div>
-          <div class="memo-right">2026 · 06 · 22</div>
+          <div class="memo-right">slide 01 / 10</div>
         </header>
 
         <div class="title-hero">
-          <div class="title-coords">v0.1.0 · <span class="num">5</span> stages · <span class="num">3</span> strategies · field engineering memo</div>
+          <div class="title-coords">production architecture · <span class="num">300k</span> models validated · <span class="num">15</span> mlflow runs at any scale</div>
           <h1 class="title-headline">
-            Multi-Model<br>
-            <em>MLflow Logging</em><br>
-            <span class="small">at scale.</span>
+            Multi-model<br>
+            <em>logging + serving</em><br>
+            <span class="small">at million-SKU scale.</span>
           </h1>
-          <p class="title-dek">A walkthrough of the codebase that logs ~<b>1.5M model entries</b> to MLflow on Databricks. Hexagonal architecture, five-stage pipeline, three swappable logging strategies behind a single <code>ModelLoggingStrategyPort</code> — all driven by <code>databricks bundle deploy</code>.</p>
+          <p class="title-dek">A reference architecture for ML teams building per-SKU model fleets on Databricks. Three acts: <b>the problem</b> with naive MLflow registration, <b>the approach</b> that breaks the tracking-API ceiling by moving data into Unity Catalog, and <b>recommendations</b> for tuning + future optimization. Code, knobs, and measured numbers.</p>
         </div>
 
         <footer class="specs">
-          <div class="spec-block">
-            <span class="lbl">prepared by</span>
-            <span class="val">Akil Thomas · Field Engineering</span>
-          </div>
-          <div class="spec-block">
-            <span class="lbl">target scale</span>
-            <span class="val"><span class="signal">1.5M</span> model entries</span>
-          </div>
-          <div class="spec-block">
-            <span class="lbl">strategies</span>
-            <span class="val"><span class="signal">3</span> swappable adapters</span>
-          </div>
-          <div class="spec-block">
-            <span class="lbl">stages</span>
-            <span class="val"><span class="signal">5</span> · generate → log</span>
-          </div>
+          <div class="spec-block"><span class="lbl">audience</span><span class="val">ML engineers · data scientists</span></div>
+          <div class="spec-block"><span class="lbl">validated scale</span><span class="val"><span class="signal">300k</span> models · 20k SKU × 5 region × 3 model</span></div>
+          <div class="spec-block"><span class="lbl">cold lookup p50</span><span class="val"><span class="signal">839 ms</span> at 20k SKU/region</span></div>
+          <div class="spec-block"><span class="lbl">mlflow runs</span><span class="val"><span class="signal">15</span> · constant in N_SKU</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 2 — PROBLEM AT SCALE
+         SLIDE 01 — ACT 1 · THE WORKLOAD
          ================================================================ -->
-    <section class="slide" data-label="Problem at scale">
+    <section class="slide" data-label="The workload">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
             <span class="tag">§01 · problem</span>
-            <span>where naive logging breaks</span>
+            <span>the workload shape</span>
             <span class="arrow">→</span>
-            <span>workspace rate ceilings</span>
+            <span>two distinct operations</span>
           </div>
-          <div class="memo-right">slide 02 / 12</div>
-        </header>
-
-        <div class="problem-content body-stack">
-          <div>
-            <div class="section-eyebrow">workspace rate ceilings</div>
-            <h2 class="section-title">Three ceilings make <em>"log everything"</em> impossible.</h2>
-            <p class="section-dek">At 1.5M model entries with one MLflow run per model, you'd need <b>~12 hours</b> just for artifact uploads. The fix isn't more concurrency — it's reshaping the work to stay under each ceiling. The Albertsons MLflow-at-scale guidance pinpoints the failure modes; we apply every one of them.</p>
-          </div>
-
-          <div class="ceilings">
-            <div class="ceiling">
-              <span class="num">35<span class="unit">RPS</span></span>
-              <div class="name">Artifact upload ceiling</div>
-              <div class="desc">Per workspace. Routes through <code>mlflowdbfs</code> by default — which silently 401s under thread-pool concurrency. Set <code>DISABLE_MLFLOWDBFS=true</code> before any mlflow import.</div>
-            </div>
-            <div class="ceiling">
-              <span class="num">120<span class="unit">RPS</span></span>
-              <div class="name">Tracking API ceiling</div>
-              <div class="desc">create_run, end_run, log_batch — all share this budget. Async logging + <code>log_batch(params, metrics)</code> hide latency; they don't raise the cap.</div>
-            </div>
-            <div class="ceiling">
-              <span class="num">500K<span class="unit">runs</span></span>
-              <div class="name">Per-experiment run cap</div>
-              <div class="desc">Hard limit. With 1 experiment per region and 100k SKUs × 3 models, naive nesting hits this. We split by region <b>and</b> collapse the model leaf to stay under.</div>
-            </div>
-          </div>
-
-          <div class="bp-row">
-            <div class="bp-label">best practices applied — Albertsons MLflow-at-scale</div>
-            <div class="bp-chips">
-              <span class="bp-chip"><span class="ok">✓</span>DISABLE_MLFLOWDBFS</span>
-              <span class="bp-chip"><span class="ok">✓</span>async logging</span>
-              <span class="bp-chip"><span class="ok">✓</span>log_batch (dict)</span>
-              <span class="bp-chip"><span class="ok">✓</span>bounded uploader pool</span>
-              <span class="bp-chip"><span class="x">✗</span>autolog</span>
-              <span class="bp-chip"><span class="x">✗</span>system_metrics_logging</span>
-              <span class="bp-chip"><span class="x">✗</span>mlflow.tracing</span>
-              <span class="bp-chip"><span class="ok">✓</span>UC Volume artifacts</span>
-            </div>
-          </div>
-        </div>
-
-        <footer class="specs">
-          <div class="spec-block"><span class="lbl">ref</span><span class="val">MLflow Logging at Scale — Albertsons</span></div>
-          <div class="spec-block"><span class="lbl">naive cost</span><span class="val"><span class="signal">12+ h</span> for 1.5M models</span></div>
-          <div class="spec-block"><span class="lbl">our strategy</span><span class="val">collapse · split · batch</span></div>
-          <div class="spec-block"><span class="lbl">see</span><span class="val">docs/MLflow Logging at Scale.pdf</span></div>
-        </footer>
-      </div>
-    </section>
-
-    <!-- ================================================================
-         SLIDE 3 — HEXAGONAL ARCHITECTURE
-         ================================================================ -->
-    <section class="slide" data-label="Hexagonal architecture">
-      <div class="frame">
-        <header class="memo">
-          <div class="memo-left">
-            <span class="tag">§02 · architecture</span>
-            <span>domains · ports · adapters</span>
-            <span class="arrow">→</span>
-            <span>dependency direction</span>
-          </div>
-          <div class="memo-right">slide 03 / 12</div>
-        </header>
-
-        <div class="body-stack">
-          <div>
-            <div class="section-eyebrow">hexagonal architecture</div>
-            <h2 class="section-title">Three rings. <em>Adapters depend inward.</em></h2>
-            <p class="section-dek">Pure dataclasses in <code>domains/</code>. <code>Protocol</code> interfaces in <code>ports/</code>. Concrete adapters wire to Spark, MLflow, and Delta. Domain entities are <b>self-describing</b> — <code>SparkSchemaMixin.spark_schema()</code> derives the Spark <code>StructType</code> from the dataclass, so adapters never duplicate the schema.</p>
-          </div>
-
-          <div class="arch-grid">
-            <div class="arch-col domains">
-              <h3>Domains</h3>
-              <div class="tagline">pure · entity-as-schema</div>
-              <ul>
-                <li>DemandRecord</li>
-                <li>TrainedModelRecord</li>
-                <li>RunPlanKey</li>
-                <li>GenerationSpec</li>
-                <li>RegionSpec</li>
-                <li>LoggingConfig</li>
-                <li>LoggingMetrics</li>
-              </ul>
-              <div class="note">All inherit <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">SparkSchemaMixin</code> → free <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">.spark_schema()</code>.</div>
-            </div>
-
-            <div class="arch-col ports">
-              <h3>Ports</h3>
-              <div class="tagline">protocol · contract only</div>
-              <ul>
-                <li>DataGeneratorPort</li>
-                <li>ReferenceModelTrainerPort</li>
-                <li>TrainingSimulatorPort</li>
-                <li>RunPlanRepositoryPort</li>
-                <li>ModelLoggingStrategyPort</li>
-              </ul>
-              <div class="note">Each port is a tiny <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">Protocol</code>. Strategy swap = swap one adapter behind one port.</div>
-            </div>
-
-            <div class="arch-col adapters">
-              <h3>Adapters</h3>
-              <div class="tagline">concrete · framework-aware</div>
-              <ul>
-                <li>SparkDataGenerator</li>
-                <li>ReferenceModelTrainer</li>
-                <li>TrainingSimulator</li>
-                <li>DeltaRunPlanRepository</li>
-                <li>CollapsedSkuLoggingStrategy</li>
-                <li>NestedModelLoggingStrategy</li>
-                <li>RegionArtifactOnlyStrategy</li>
-              </ul>
-              <div class="note">Spark, MLflow, Delta live here. Domains have <b>no</b> framework imports.</div>
-            </div>
-          </div>
-
-          <div class="arch-dep">adapters <span class="signal">→</span> ports <span class="signal">→</span> domains · <span class="signal">never the other way</span></div>
-        </div>
-
-        <footer class="specs">
-          <div class="spec-block"><span class="lbl">layout</span><span class="val">src/dbrx_multimodel_registration/{domains,ports,adapters}</span></div>
-          <div class="spec-block"><span class="lbl">entrypoint</span><span class="val">src/main.py + notebooks/demo.ipynb</span></div>
-          <div class="spec-block"><span class="lbl">helper</span><span class="val">utils/helpers.py · SparkSchemaMixin</span></div>
-          <div class="spec-block"><span class="lbl">entities</span><span class="val"><span class="signal">7</span> · all self-describing</span></div>
-        </footer>
-      </div>
-    </section>
-
-    <!-- ================================================================
-         SLIDE 4 — FIVE-STAGE PIPELINE
-         ================================================================ -->
-    <section class="slide" data-label="Five-stage pipeline">
-      <div class="frame">
-        <header class="memo">
-          <div class="memo-left">
-            <span class="tag">§03 · pipeline</span>
-            <span>generate · train · simulate · persist · log</span>
-            <span class="arrow">→</span>
-            <span>flow + data shapes</span>
-          </div>
-          <div class="memo-right">slide 04 / 12</div>
-        </header>
-
-        <div class="body-stack">
-          <div>
-            <div class="section-eyebrow">five-stage pipeline</div>
-            <h2 class="section-title">Generate, train <em>once</em>, simulate, persist, log.</h2>
-            <p class="section-dek">Stage 2 trains one real reference RandomForest on a single (region, sku) slice; Stage 3 broadcasts the bytes; Stage 4's pandas_udf exposes a <code>model_training_fn</code> seam where real distributed training would slot in. The benchmark is <b>Stage 5</b> — driver-side multithreaded MLflow logging.</p>
-          </div>
-
-          <div class="pipeline">
-            <div class="stage">
-              <div class="num">STAGE 1</div>
-              <h4>Generate mock demand</h4>
-              <div class="adapter">SparkDataGenerator</div>
-              <div class="desc">Cross-product of (regions × skus × rows_per_sku) emitted via <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">mapInPandas</code>. Schema derived from <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">DemandRecord</code>.</div>
-            </div>
-            <div class="stage">
-              <div class="num">STAGE 2</div>
-              <h4>Train ONE reference</h4>
-              <div class="adapter">ReferenceModelTrainer</div>
-              <div class="desc">RandomForestRegressor on one (region, sku) slice. Pickled to <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">${volume}/reference_model/model.pkl</code> — ~5MB target.</div>
-            </div>
-            <div class="stage">
-              <div class="num">STAGE 3+4</div>
-              <h4>Broadcast + simulate</h4>
-              <div class="adapter">TrainingSimulator</div>
-              <div class="desc">Broadcasts bytes; pandas_udf's <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">model_training_fn</code> seam emits one TrainedModelRecord per row.</div>
-            </div>
-            <div class="stage">
-              <div class="num">STAGE 4b</div>
-              <h4>Persist run plan</h4>
-              <div class="adapter">DeltaRunPlanRepository</div>
-              <div class="desc">Writes Delta table partitioned by region. Streamed back via <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">toLocalIterator</code> — driver never holds it all.</div>
-            </div>
-            <div class="stage">
-              <div class="num">STAGE 5</div>
-              <h4>Log to MLflow</h4>
-              <div class="adapter">*LoggingStrategy</div>
-              <div class="desc">Driver-side <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">ThreadPoolExecutor</code>. One experiment per region. <b>This is the benchmark.</b></div>
-            </div>
-          </div>
-
-          <div class="dataflow">
-            <div class="df-card">
-              <div class="ttl">DemandRecord</div>
-              <div class="desc">region, sku, date, demand, price, day_of_week, promotion, inventory · 9 cols · all faker-driven via default_factory</div>
-            </div>
-            <div class="df-card">
-              <div class="ttl">TrainedModelRecord</div>
-              <div class="desc">region, sku, model_name, model_blob_bytes · params (map&lt;str,str&gt;) · metrics (map&lt;str,float&gt;) · 10 mock of each</div>
-            </div>
-            <div class="df-card">
-              <div class="ttl">Run plan (Delta)</div>
-              <div class="desc">1.5M rows · partitioned by region · schema derived from TrainedModelRecord via <code style="color:#6cd3a0">.spark_schema()</code></div>
-            </div>
-          </div>
-        </div>
-
-        <footer class="specs">
-          <div class="spec-block"><span class="lbl">orchestrator</span><span class="val">src/main.py</span></div>
-          <div class="spec-block"><span class="lbl">notebook</span><span class="val">notebooks/demo.ipynb</span></div>
-          <div class="spec-block"><span class="lbl">seam for real training</span><span class="val"><span class="signal">model_training_fn</span></span></div>
-          <div class="spec-block"><span class="lbl">timed step</span><span class="val">LoggingMetrics.elapsed_seconds</span></div>
-        </footer>
-      </div>
-    </section>
-
-    <!-- ================================================================
-         SLIDE 5 — THREE LOGGING STRATEGIES (the heart)
-         ================================================================ -->
-    <section class="slide" data-label="Three logging strategies">
-      <div class="frame">
-        <header class="memo">
-          <div class="memo-left">
-            <span class="tag">§04 · strategies</span>
-            <span>same port, three trade-offs</span>
-            <span class="arrow">→</span>
-            <span>--strategy &lt;name&gt;</span>
-          </div>
-          <div class="memo-right">slide 05 / 12</div>
-        </header>
-
-        <div class="body-stack">
-          <div>
-            <div class="section-eyebrow">three logging strategies</div>
-            <h2 class="section-title">One port. <em>Three shapes.</em> Picked at runtime.</h2>
-            <p class="section-dek">Every strategy implements <code>ModelLoggingStrategyPort</code> and consumes the same run-plan Delta table. The trade-off they expose: <b>run-count vs artifact-count vs hierarchy depth</b>. Pick the one that fits your scale and your audience's debugging needs.</p>
-          </div>
-
-          <div class="strategies">
-            <div class="strat">
-              <span class="pill default">default · recommended</span>
-              <h4>Collapsed SKU</h4>
-              <div class="slug">--strategy collapsed_sku</div>
-              <div class="hier">region <span class="arr">→</span> sku <span class="arr">(leaf)</span></div>
-              <div class="stats">
-                <div><div class="k">runs / experiment</div><div class="v good">~100k</div></div>
-                <div><div class="k">artifacts / region</div><div class="v good">1 bundle</div></div>
-                <div><div class="k">tracking API calls</div><div class="v good">low</div></div>
-                <div><div class="k">cap headroom</div><div class="v good">5× safe</div></div>
-              </div>
-              <div class="when">One nested SKU run with <b>namespaced</b> <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">model.*</code> params/metrics. One Parquet bundle artifact per region. Collapses 1.5M runs to ~100k.</div>
-            </div>
-
-            <div class="strat">
-              <span class="pill compare">strict approach 3</span>
-              <h4>Nested Model</h4>
-              <div class="slug">--strategy nested_model</div>
-              <div class="hier">region <span class="arr">→</span> sku <span class="arr">→</span> model</div>
-              <div class="stats">
-                <div><div class="k">runs / experiment</div><div class="v warn">~400k</div></div>
-                <div><div class="k">artifacts / region</div><div class="v">1 bundle</div></div>
-                <div><div class="k">tracking API calls</div><div class="v warn">high</div></div>
-                <div><div class="k">cap headroom</div><div class="v warn">tight</div></div>
-              </div>
-              <div class="when">3-level nesting honors the PRD literally. With <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">--per-model-artifact</code> on: <b>~12h</b> at full scale (illustrates worst case).</div>
-            </div>
-
-            <div class="strat">
-              <span class="pill baseline">baseline · approach 1</span>
-              <h4>Region Artifact Only</h4>
-              <div class="slug">--strategy region_artifact_only</div>
-              <div class="hier">region <span class="arr">(leaf)</span></div>
-              <div class="stats">
-                <div><div class="k">runs / experiment</div><div class="v good">1</div></div>
-                <div><div class="k">artifacts / region</div><div class="v good">1 table</div></div>
-                <div><div class="k">tracking API calls</div><div class="v good">~5</div></div>
-                <div><div class="k">elapsed</div><div class="v good">sub-minute</div></div>
-              </div>
-              <div class="when">5 runs total. All model metadata flattened into one Parquet table per region. <b>Loses hierarchy</b> — max throughput baseline only.</div>
-            </div>
-          </div>
-
-          <div class="strat-swap">swap via <code>--strategy &lt;collapsed_sku | nested_model | region_artifact_only&gt;</code> · no code change</div>
-        </div>
-
-        <footer class="specs">
-          <div class="spec-block"><span class="lbl">port</span><span class="val">ports/model_logging_strategy.py</span></div>
-          <div class="spec-block"><span class="lbl">consumes</span><span class="val">DeltaRunPlanRepository · streams by region</span></div>
-          <div class="spec-block"><span class="lbl">concurrency</span><span class="val">driver ThreadPoolExecutor · <span class="signal">16</span> default</span></div>
-          <div class="spec-block"><span class="lbl">runtime select</span><span class="val">--strategy CLI · widget · bundle var</span></div>
-        </footer>
-      </div>
-    </section>
-
-
-    <!-- ================================================================
-         SLIDE 06 — UC_TABLE STRATEGY: N exps × 1 run × tags → UC + Genie
-         ================================================================ -->
-    <section class="slide" data-label="uc_table strategy">
-      <div class="frame">
-        <header class="memo">
-          <div class="memo-left">
-            <span class="tag">§05 · uc_table</span>
-            <span>N experiments × 1 run · tagged to UC</span>
-            <span class="arrow">→</span>
-            <span>15 mlflow runs at 1M models</span>
-          </div>
-          <div class="memo-right">slide 06 / 12</div>
+          <div class="memo-right">slide 02 / 10</div>
         </header>
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">uc_table strategy</div>
-            <h2 class="section-title">MLflow holds <em>pointers</em>. Unity Catalog holds the data.</h2>
-            <p class="section-dek">Each region exposes <b>N deployable serving endpoints</b>. Each endpoint is exactly <b>one MLflow run</b>, tagged with pointers to the artifact table, parquet bundle, and Genie space. The tracking API ceiling becomes irrelevant — at 1.5M models we still create only <span class="signal-num">15</span> MLflow runs total.</p>
+            <div class="section-eyebrow">act 1 · the problem</div>
+            <h2 class="section-title">Per-region × per-SKU × <em>per-model_name.</em></h2>
+            <p class="section-dek">Demand-forecasting fleets train one model per <b>(region, sku, model_name)</b> tuple. At our customer scale: <span class="signal-num">5</span> regions × <span class="signal-num">100k</span> SKUs × <span class="signal-num">3</span> model variants = <span class="signal-num">1.5M</span> models. Two operations have to scale, and they have very different shapes.</p>
           </div>
           <div class="uctable-grid">
             <div class="uc-side mlflow">
-              <div class="side-eyebrow">mlflow tracking</div>
+              <div class="side-eyebrow">operation 1 · logging</div>
+              <h4>Durable record</h4>
+              <div class="kv"><span class="k">per-model metadata</span><span class="v">params, metrics, blob</span></div>
+              <div class="kv"><span class="k">access pattern</span><span class="v">batch · SQL-queryable</span></div>
+              <div class="kv"><span class="k">latency target</span><span class="v">offline · minutes</span></div>
+              <div class="kv"><span class="k">consumers</span><span class="v">analysts · Genie · dashboards</span></div>
+              <div class="tag-list" style="margin-top:14px;padding-top:14px">
+                <div class="tag-lbl">"which sku's RandomForest has the worst RMSE in WEST?"</div>
+              </div>
+            </div>
+            <div class="uc-side uc">
+              <div class="side-eyebrow">operation 2 · serving lookup</div>
+              <h4>Per-SKU model load</h4>
+              <div class="kv"><span class="k">request payload</span><span class="v">one (region, sku) + features</span></div>
+              <div class="kv"><span class="k">access pattern</span><span class="v">point lookup · per-request</span></div>
+              <div class="kv"><span class="k">latency target</span><span class="v">sub-second cold · ms warm</span></div>
+              <div class="kv"><span class="k">consumers</span><span class="v">Databricks Model Serving endpoint</span></div>
+              <div class="tag-list" style="margin-top:14px;padding-top:14px">
+                <div class="tag-lbl">"give me the trained model for sku=SKU-042-987"</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">fleet shape</span><span class="val">regions × skus × model_names</span></div>
+          <div class="spec-block"><span class="lbl">target scale</span><span class="val"><span class="signal">1M+</span> models</span></div>
+          <div class="spec-block"><span class="lbl">key constraint</span><span class="val">both ops on the same training output</span></div>
+          <div class="spec-block"><span class="lbl">platform</span><span class="val">Databricks · MLflow · Unity Catalog</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 02 — ACT 1 · WHY NAIVE MLFLOW DOESN'T SCALE
+         ================================================================ -->
+    <section class="slide" data-label="MLflow ceilings">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§02 · ceilings</span>
+            <span>logging through tracking API</span>
+            <span class="arrow">→</span>
+            <span>three hard limits</span>
+          </div>
+          <div class="memo-right">slide 03 / 10</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">act 1 · the problem</div>
+            <h2 class="section-title">The MLflow tracking API <em>can't carry per-model.</em></h2>
+            <p class="section-dek">If every model becomes one MLflow run, three workspace-side limits compound. None are negotiable; all surface as <code>RESOURCE_EXHAUSTED</code> or socket exhaustion under sustained load. The 1.5M-runs-per-experiment naive shape simply doesn't terminate.</p>
+          </div>
+          <div class="ceilings">
+            <div class="ceiling">
+              <div class="num">~8<span class="unit">SKU/s</span></div>
+              <div class="name">Per-experiment write throughput</div>
+              <div class="desc">Workspace-side rate cap on <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">log_batch</code>. Hard ceiling regardless of driver concurrency. Confirmed empirically across <span class="signal">c=8</span>, <span class="signal">c=16</span>, <span class="signal">c=32</span> driver thread counts.</div>
+            </div>
+            <div class="ceiling">
+              <div class="num">100k<span class="unit">runs</span></div>
+              <div class="name">Per-experiment run-count ceiling</div>
+              <div class="desc">Workspaces start refusing <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">create_run</code> past this. Per-region per-SKU fan-out hits it in any nontrivial deployment.</div>
+            </div>
+            <div class="ceiling">
+              <div class="num">32<span class="unit">sockets</span></div>
+              <div class="name">urllib3 HTTP pool / worker</div>
+              <div class="desc">Threads block on socket allocation past the pool size. Bytes pile up on the driver → memory pressure → OOM. Tunable via <code style="font-family:'JetBrains Mono',monospace;color:#6cd3a0">MLFLOW_HTTP_POOL_*</code> but bounded by workspace limits.</div>
+            </div>
+          </div>
+          <div class="write-note" style="margin-top:24px">
+            <b>Empirical:</b> per-model-as-run at <code>5 regions × 100k SKUs × 3 model_names</code> takes <span class="signal-num">~17 hours</span> at full driver concurrency — and that's <i>before</i> the per-experiment run-count ceiling kicks the job over. We need a different shape.
+          </div>
+        </div>
+        <footer class="specs">
+          <div class="spec-block"><span class="lbl">prior approach</span><span class="val">create_run per (region, sku, model_name)</span></div>
+          <div class="spec-block"><span class="lbl">empirical wallclock</span><span class="val signal">~17 hours @ 1.5M</span></div>
+          <div class="spec-block"><span class="lbl">terminating factor</span><span class="val">workspace rate cap, not driver</span></div>
+          <div class="spec-block"><span class="lbl">conclusion</span><span class="val">redesign the shape, not tune the API</span></div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         SLIDE 03 — ACT 2 · THE PIVOT
+         ================================================================ -->
+    <section class="slide" data-label="The pivot">
+      <div class="frame">
+        <header class="memo">
+          <div class="memo-left">
+            <span class="tag">§03 · the pivot</span>
+            <span>uc_table strategy</span>
+            <span class="arrow">→</span>
+            <span>15 deployable runs at any scale</span>
+          </div>
+          <div class="memo-right">slide 04 / 10</div>
+        </header>
+        <div class="body-stack">
+          <div>
+            <div class="section-eyebrow">act 2 · the approach</div>
+            <h2 class="section-title">MLflow holds <em>pointers</em>. Unity Catalog holds the data.</h2>
+            <p class="section-dek">Keep the MLflow surface <b>minimal</b>: 1 run per (region × serving endpoint slot), tagged with pointers to where the data actually lives. Per-SKU detail moves into Unity Catalog — a Delta table for querying, parquet bundles for serving. The tracking-API ceiling becomes irrelevant: we never <code>log_batch</code> per SKU.</p>
+          </div>
+          <div class="uctable-grid">
+            <div class="uc-side mlflow">
+              <div class="side-eyebrow">mlflow tracking · the minimal surface</div>
               <h4>15 deployable runs</h4>
               <div class="kv"><span class="k">experiments / region</span><span class="v signal-num">3</span></div>
               <div class="kv"><span class="k">runs / experiment</span><span class="v signal-num">1</span></div>
-              <div class="kv"><span class="k">total at any scale</span><span class="v signal-num">15</span></div>
+              <div class="kv"><span class="k">total at any data scale</span><span class="v signal-num">15</span></div>
               <div class="tag-list">
-                <div class="tag-lbl">each run carries 3 tags:</div>
+                <div class="tag-lbl">each run carries 3 pointer tags:</div>
                 <div class="tag-pill"><code>model_bundle_uri</code></div>
                 <div class="tag-pill"><code>demand_forecasting_table</code></div>
                 <div class="tag-pill"><code>genie_space_id</code></div>
               </div>
             </div>
             <div class="uc-side uc">
-              <div class="side-eyebrow">unity catalog</div>
-              <h4>3 typed surfaces</h4>
+              <div class="side-eyebrow">unity catalog · where the data lives</div>
+              <h4>Three typed surfaces</h4>
               <div class="uc-item">
                 <div class="uc-k">delta table</div>
                 <div class="uc-v"><code>demand_forecasting_artifacts</code></div>
-                <div class="uc-note">(region, sku, model_name, rmse, mape, r2, params, metrics, logged_at) · SQL-queryable system of record</div>
+                <div class="uc-note">(region, sku, model_name, rmse, mape, r2, params, metrics, logged_at) · SQL-queryable system of record · column comments propagated from <code>Annotated[T, "…"]</code> dataclass metadata</div>
               </div>
               <div class="uc-item">
                 <div class="uc-k">parquet bundles</div>
-                <div class="uc-v"><code>/Volumes/.../&lt;region&gt;/bundle_parquet/</code></div>
-                <div class="uc-note">5 per-region bundles · partitioned by <code>bucket</code> · 16MB row groups · per-SKU serving lookup</div>
+                <div class="uc-v"><code>/Volumes/&lt;cat&gt;/&lt;sch&gt;/&lt;vol&gt;/&lt;region&gt;/bundle_parquet/</code></div>
+                <div class="uc-note">5 per-region bundles · partitioned by <code>bucket</code> · 16MB row groups · serving-time point lookup</div>
               </div>
               <div class="uc-item">
                 <div class="uc-k">genie space</div>
                 <div class="uc-v"><code>Demand Forecasting Insights</code></div>
-                <div class="uc-note">natural-language query over the delta table · seeded with 9 example questions + canned SQL · column comments propagated from <code>Annotated[T, "…"]</code> on the dataclass</div>
+                <div class="uc-note">natural-language query over the Delta table · seeded with 9 example questions + canned SQL · "which 10 SKUs in NORTHEAST have the highest RMSE?" → returns rows</div>
               </div>
             </div>
           </div>
         </div>
         <footer class="specs">
           <div class="spec-block"><span class="lbl">strategy</span><span class="val">UCTableLoggingStrategy</span></div>
-          <div class="spec-block"><span class="lbl">tracking api calls</span><span class="val signal">15 total</span></div>
-          <div class="spec-block"><span class="lbl">per-sku data</span><span class="val">Delta table + parquet bundle</span></div>
-          <div class="spec-block"><span class="lbl">query path</span><span class="val">SQL · Genie · PyArrow lookup</span></div>
+          <div class="spec-block"><span class="lbl">tracking api calls</span><span class="val signal">15 create_run total</span></div>
+          <div class="spec-block"><span class="lbl">per-sku detail</span><span class="val">Delta table + parquet bundle</span></div>
+          <div class="spec-block"><span class="lbl">query surface</span><span class="val">SQL · Genie · PyArrow</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 07 — BUNDLE PARQUET WRITE DESIGN
+         SLIDE 04 — ACT 2 · BUNDLE WRITE
          ================================================================ -->
-    <section class="slide" data-label="Bundle parquet write design">
+    <section class="slide" data-label="Bundle write">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§06 · bundle write</span>
+            <span class="tag">§04 · bundle write</span>
             <span>bucketed · sorted · memory-bounded</span>
             <span class="arrow">→</span>
-            <span>scales to 100k+ per region</span>
+            <span>scales without OOM</span>
           </div>
-          <div class="memo-right">slide 07 / 12</div>
+          <div class="memo-right">slide 05 / 10</div>
         </header>
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">bundle write</div>
-            <h2 class="section-title">Three knobs. <em>One rule.</em></h2>
-            <p class="section-dek">Per-region parquet bundles backed by Unity Catalog Volumes. The structural rule: <b>multiple files per bucket dir with non-overlapping sku ranges</b> — so PyArrow row-group skipping works file-by-file at read time. Three knobs control where the design sits between write memory, read latency, and dir count.</p>
+            <div class="section-eyebrow">act 2 · the approach</div>
+            <h2 class="section-title">Three knobs. <em>One structural rule.</em></h2>
+            <p class="section-dek">The per-region parquet bundle is the serving endpoint's data store. The write must be <b>memory-bounded</b> (Python workers OOM at 4MB blobs × N rows) AND produce a <b>row-group-skippable layout</b> (sorted SKU ranges per file). Three knobs in code; one rule about how they fit together.</p>
           </div>
           <div class="knobs-grid">
             <div class="knob">
               <div class="knob-num">64</div>
               <div class="knob-label">bucket_count</div>
-              <div class="knob-desc">read-side dir fan-out · 64 was the sweet spot from iter sweep — more dirs hurt <code>load_context</code> (PyArrow enumeration); fewer dirs hurt row-group skipping at scale</div>
+              <div class="knob-desc">read-side dir fan-out · 64 was the sweet spot from iter sweep — more dirs hurt <code>load_context</code> (PyArrow enumeration cost); fewer hurt row-group skipping at scale</div>
             </div>
             <div class="knob">
               <div class="knob-num">2<span class="knob-unit">GB</span></div>
@@ -1604,117 +1434,129 @@ img, video, canvas, svg { max-width: 100%; max-height: 100%; }
           <div class="write-code">
 <pre>plan_df
   .withColumn("bucket", expr("cast(substring(sku,5,10) as int) % 64"))
-  .<span class="hl">repartitionByRange</span>(n_partitions, "bucket", "sku")    <span class="cmt"># range-partition by (bucket, sku)</span>
-  .<span class="hl">sortWithinPartitions</span>("bucket", "sku")                <span class="cmt"># local sort → ordered row groups (critical!)</span>
+  .<span class="hl">repartitionByRange</span>(n_partitions, "bucket", "sku")    <span class="cmt"># distribute by (bucket, sku) range</span>
+  .<span class="hl">sortWithinPartitions</span>("bucket", "sku")                <span class="cmt"># local sort → ordered row groups (do not skip!)</span>
   .write
-    .partitionBy("bucket")                              <span class="cmt"># Hive-style bucket=N dirs</span>
+    .partitionBy("bucket")                              <span class="cmt"># bucket=N/ Hive-style dirs</span>
     .option("parquet.block.size", 16 * 1024 * 1024)
     .parquet(bundle_uri)</pre>
           </div>
-          <div class="write-note"><b>Critical pairing:</b> <code>repartitionByRange</code> alone doesn't sort WITHIN partitions. Skipping the explicit <code>sortWithinPartitions</code> takes cold p50 from <span class="signal-num">784 ms</span> to <span class="signal-num">12,140 ms</span> at 10k — row groups become unsorted and PyArrow has to scan the whole file.</div>
+          <div class="write-note">
+            <b>Critical pairing:</b> <code>repartitionByRange</code> distributes by range ACROSS partitions but does NOT sort within. Skipping the explicit <code>sortWithinPartitions</code> takes cold p50 from <span class="signal-num">784 ms</span> to <span class="signal-num">12,140 ms</span> at 10k — row groups become unsorted and PyArrow has to scan the whole file.
+          </div>
         </div>
         <footer class="specs">
           <div class="spec-block"><span class="lbl">file</span><span class="val">adapters/logging/uc_table.py</span></div>
           <div class="spec-block"><span class="lbl">config</span><span class="val">domains.entities.WorkloadBudget</span></div>
-          <div class="spec-block"><span class="lbl">layout</span><span class="val">bucket=N/ · multiple files · non-overlapping</span></div>
+          <div class="spec-block"><span class="lbl">output layout</span><span class="val">bucket=N/ · multiple files · non-overlapping sku</span></div>
           <div class="spec-block"><span class="lbl">memory bound</span><span class="val signal">explicit, not derived</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 08 — BUNDLE PARQUET READ APPROACHES
+         SLIDE 05 — ACT 2 · BUNDLE READ
          ================================================================ -->
-    <section class="slide" data-label="Bundle parquet read approaches">
+    <section class="slide" data-label="Bundle read">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§07 · bundle read</span>
-            <span>pyarrow · lru_cache · footer stats</span>
+            <span class="tag">§05 · bundle read</span>
+            <span>pyarrow · lru_cache · row-group skipping</span>
             <span class="arrow">→</span>
-            <span>two patterns ship</span>
+            <span>cold p50 under 1 s</span>
           </div>
-          <div class="memo-right">slide 08 / 12</div>
+          <div class="memo-right">slide 06 / 10</div>
         </header>
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">bundle read</div>
-            <h2 class="section-title">Two patterns. <em>Pick by startup cost.</em></h2>
-            <p class="section-dek">Both are <code>mlflow.pyfunc.PythonModel</code> classes — drop-in for Databricks Model Serving. Both use <code>lru_cache</code> for warm hits. The split is how cold lookup is resolved: <b>filter pushdown</b> (zero startup cost, scanning per-query) vs <b>pre-loaded footer index</b> (one-time startup, near-instant per-query).</p>
+            <div class="section-eyebrow">act 2 · the approach</div>
+            <h2 class="section-title">PyArrow opens <em>one row group.</em></h2>
+            <p class="section-dek">The serving endpoint instantiates a <code>mlflow.pyfunc.PythonModel</code> that lazy-loads on first request per SKU. Three forces combine to keep cold lookup sub-second at 20k SKU per region: <b>partition pruning</b> (open only the matching bucket dir), <b>row-group skipping</b> (open only the matching row group within a file), and <b>LRU caching</b> (skip everything for repeat SKUs).</p>
           </div>
           <div class="read-grid">
             <div class="read-side primary">
-              <span class="pill default">recommended starting point</span>
+              <span class="pill default">ships in package · default</span>
               <h4>PyArrowLruModel</h4>
-              <div class="slug">approach 1 · filter pushdown</div>
-              <div class="read-code"><pre>ds.dataset(bundle_uri, partitioning="hive")
-  .to_table(
+              <div class="slug">production-ready · zero startup cost</div>
+              <div class="read-code"><pre>def load_context(self, context):
+  self._dataset = ds.dataset(bundle_uri,
+    format="parquet", partitioning="hive")
+  self._get_model = lru_cache(maxsize=512)(
+    self._load_model_uncached)
+
+def _load_model_uncached(self, sku):
+  bucket = _sku_bucket(sku, BUCKET_COUNT)
+  table = self._dataset.to_table(
     filter=(field("bucket") == bucket) &amp;
            (field("sku") == sku),
     columns=["model_blob_bytes"],
-  )</pre></div>
+  )
+  return pickle.loads(
+    table.column("model_blob_bytes")[0].as_py())</pre></div>
               <div class="kv-row">
                 <div class="kv-c"><div class="k">cold p50 @ 10k</div><div class="v good">784 ms</div></div>
                 <div class="kv-c"><div class="k">cold p50 @ 20k</div><div class="v good">839 ms</div></div>
                 <div class="kv-c"><div class="k">warm p50</div><div class="v good">33 ms</div></div>
                 <div class="kv-c"><div class="k">load_context</div><div class="v good">~2.6 s</div></div>
               </div>
-              <div class="when">PyArrow opens the bucket dir on each query, reads parquet footers, applies row-group skipping via min/max stats. Pays a small per-file cost; zero startup cost.</div>
+              <div class="when">PyArrow filter pushdown does the work. Per query: open bucket dir, read footers of ~4 files, skip row groups via min/max stats, read the one matching row group (~16 MB). Zero startup cost.</div>
             </div>
             <div class="read-side secondary">
-              <span class="pill compare">faster cold, longer startup</span>
+              <span class="pill compare">also ships · cold-latency-sensitive</span>
               <h4>PyArrowFooterIndexModel</h4>
-              <div class="slug">approach 1b · pre-loaded index</div>
-              <div class="read-code"><pre>at load_context:
-  for each parquet file:
-    for each row_group:
-      stats = footer.row_group(rg).column("sku").stats
-      entries.append((stats.min, stats.max, file, rg))
+              <div class="slug">faster cold · pays startup once</div>
+              <div class="read-code"><pre>def load_context(self, context):
+  # walk every parquet file, read footers,
+  # build sorted index of row-group sku ranges
+  entries = []
+  for fp in walk(bundle_uri):
+    pf = pq.ParquetFile(fp)
+    for rg in range(pf.num_row_groups):
+      st = pf.metadata.row_group(rg) \
+        .column(sku_idx).statistics
+      entries.append((st.min, st.max, fp, rg))
   entries.sort()
-
-per lookup:
-  idx = bisect(sku_mins, sku)
-  return read_row_group(entries[idx].file,
-                        entries[idx].rg)</pre></div>
+  self._entries = entries
+  # per lookup: binary search → 1 row-group read</pre></div>
               <div class="kv-row">
                 <div class="kv-c"><div class="k">cold p50 @ 10k</div><div class="v signal-num">186 ms</div></div>
                 <div class="kv-c"><div class="k">cold p95 @ 10k</div><div class="v signal-num">999 ms</div></div>
                 <div class="kv-c"><div class="k">warm p50</div><div class="v good">33 ms</div></div>
                 <div class="kv-c"><div class="k">load_context</div><div class="v warn">scales w/ file count</div></div>
               </div>
-              <div class="when">Builds in-memory <code>(sku_min, sku_max, file, rg_idx)</code> index at startup. Per-lookup is binary search + one row-group read. <b>4× faster</b> than filter pushdown at 10k.</div>
+              <div class="when"><b>4× faster cold</b> than the default. Pre-loads (sku_min, sku_max, file, row_group) tuples at startup; per-query is binary search + one row-group read. Best for endpoints with long-running replicas serving many cold lookups.</div>
             </div>
           </div>
-          <div class="read-note">A third class — <code>LakebaseLookupModel</code> — ships as code only. Sub-10 ms point lookups via managed Postgres when serving traffic exceeds what UC Volume FUSE handles under concurrency.</div>
         </div>
         <footer class="specs">
-          <div class="spec-block"><span class="lbl">approach 1</span><span class="val">notebooks/demo.ipynb cell 31</span></div>
-          <div class="spec-block"><span class="lbl">approach 1b</span><span class="val">notebooks/demo.ipynb cell 32</span></div>
-          <div class="spec-block"><span class="lbl">lakebase</span><span class="val">adapters/serving/lakebase.py</span></div>
-          <div class="spec-block"><span class="lbl">cache</span><span class="val"><code>functools.lru_cache</code> · bounded</span></div>
+          <div class="spec-block"><span class="lbl">default class</span><span class="val">notebooks/demo.ipynb cell 31</span></div>
+          <div class="spec-block"><span class="lbl">alternate class</span><span class="val">notebooks/demo.ipynb cell 32</span></div>
+          <div class="spec-block"><span class="lbl">cache</span><span class="val"><code>functools.lru_cache</code> · bounded · 512 default</span></div>
+          <div class="spec-block"><span class="lbl">serving</span><span class="val">mlflow.pyfunc · drop-in</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 09 — SCALING PROOF: COLD LATENCY AT 1k / 10k / 20k
+         SLIDE 06 — ACT 2 · SCALING PROOF
          ================================================================ -->
     <section class="slide" data-label="Scaling proof">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§08 · scaling proof</span>
+            <span class="tag">§06 · scaling proof</span>
             <span>same code · 20× scale range</span>
             <span class="arrow">→</span>
             <span>cold p50 grew only 29%</span>
           </div>
-          <div class="memo-right">slide 09 / 12</div>
+          <div class="memo-right">slide 07 / 10</div>
         </header>
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">measured · 6-worker m5d.2xlarge cluster</div>
+            <div class="section-eyebrow">act 2 · the approach</div>
             <h2 class="section-title">300k models. <em>Sub-second</em> cold lookup.</h2>
-            <p class="section-dek">Bundle write + serving benchmark, same hardware, same code path, scaling SKU count per region. The cold-lookup curve is what makes serving viable at scale: <b>20× more data → 29% slower lookup</b>. Row-group skipping + bounded-memory write are doing the work.</p>
+            <p class="section-dek">Bundle write + serving benchmark on a 6-worker m5d.2xlarge cluster, same code path, increasing SKU scale. The cold-lookup curve is what makes serving viable at scale: <b>20× more data → 29% slower lookup</b>. Row-group skipping + bounded-memory write are doing the work.</p>
           </div>
           <div class="scaling-grid">
             <div class="chart">
@@ -1731,7 +1573,7 @@ per lookup:
                 <div class="chart-bar"><div class="bar" style="width: 10.0%;"><span class="bar-val">839 ms</span></div></div>
               </div>
               <div class="chart-axis"><span>0</span><span>2 s</span><span>4 s</span><span>6 s</span><span>8 s</span></div>
-              <div class="chart-cap">cold lookup p50 · single SKU model load · PyArrowLruModel · UC Volume FUSE</div>
+              <div class="chart-cap">cold lookup p50 · single sku model load · PyArrowLruModel · UC Volume FUSE</div>
             </div>
             <div class="scaling-tbl">
               <table>
@@ -1750,217 +1592,198 @@ per lookup:
           </div>
         </div>
         <footer class="specs">
-          <div class="spec-block"><span class="lbl">cluster</span><span class="val">6× m5d.2xlarge workers (32GB) · i3.4xlarge driver</span></div>
-          <div class="spec-block"><span class="lbl">read class</span><span class="val">PyArrowLruModel · functools.lru_cache(512)</span></div>
-          <div class="spec-block"><span class="lbl">samples</span><span class="val">100 distinct cold SKUs · 10 warm × 10 reps</span></div>
+          <div class="spec-block"><span class="lbl">cluster</span><span class="val">6× m5d.2xlarge workers · i3.4xlarge driver</span></div>
+          <div class="spec-block"><span class="lbl">read class</span><span class="val">PyArrowLruModel · lru_cache(512)</span></div>
+          <div class="spec-block"><span class="lbl">samples</span><span class="val">100 distinct cold · 10 warm × 10 reps</span></div>
           <div class="spec-block"><span class="lbl">ceiling</span><span class="val signal">extrapolates to 100k+ per region</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 6 — CONFIGURATION
+         SLIDE 07 — ACT 3 · TUNE FOR YOUR WORKLOAD
          ================================================================ -->
-    <section class="slide" data-label="Configuration">
+    <section class="slide" data-label="Tune for your workload">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§05 · config</span>
-            <span>sizing + tuning</span>
+            <span class="tag">§07 · tuning</span>
+            <span>same code · different constraints</span>
             <span class="arrow">→</span>
-            <span>two domain entities</span>
+            <span>pick the right knob</span>
           </div>
-          <div class="memo-right">slide 10 / 12</div>
+          <div class="memo-right">slide 08 / 10</div>
         </header>
-
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">configuration story</div>
-            <h2 class="section-title">Sizing <em>vs</em> tuning. Two entities, three drivers.</h2>
-            <p class="section-dek">Scope (how big?) and tuning (how hard do we push the workspace?) are separate concerns. Same values reachable from CLI args, notebook widgets, and <code>databricks.yml</code> bundle variables — pick the entry point that fits your workflow.</p>
+            <div class="section-eyebrow">act 3 · recommendations</div>
+            <h2 class="section-title">Pick the knob for <em>your</em> constraint.</h2>
+            <p class="section-dek">The defaults (<code>bucket_count=64</code>, <code>target_bytes_per_task=2GB</code>, <code>parquet.block.size=16MB</code>) are tuned for our 6-worker m5d.2xlarge cluster at 10-20k SKU/region. Four common deviations + the knob to turn for each.</p>
           </div>
-
-          <div class="config-grid">
-            <div class="config-card left">
-              <h4>GenerationSpec</h4>
-              <div class="sub">sizing · scope of the demo</div>
-<pre><span class="kw">spec</span> = GenerationSpec.<span class="kw">of</span>(
-    n_regions   = <span class="num">5</span>,         <span class="cm"># 1..10 canonical</span>
-    n_skus      = <span class="num">100_000</span>,   <span class="cm"># per region</span>
-    rows_per_sku= <span class="num">100</span>,       <span class="cm"># demand observations</span>
-)
-<span class="cm"># → 50M demand rows, 1.5M run-plan entries</span></pre>
-              <div class="controls"><b>Dials the workload.</b> Try 5 × 100k × 100 for the full benchmark, or 2 × 100 × 10 for a smoke test in seconds.</div>
+          <div class="decision-grid">
+            <div class="decision-card">
+              <div class="when">if your cluster has</div>
+              <div class="scenario">Smaller worker memory</div>
+              <div class="turn">turn the knob</div>
+              <div class="knob-action">target_bytes_per_task ↓ to 500 MB</div>
+              <div class="effect">More Spark partitions per region · ~4 files per bucket · cold lookup ~700-900 ms · safer for memory-tight workers. Tradeoff: per-cold-query opens more file footers.</div>
             </div>
-
-            <div class="config-card right">
-              <h4>LoggingConfig</h4>
-              <div class="sub">tuning · how hard we push</div>
-<pre><span class="kw">LoggingConfig</span>(
-    concurrency     = <span class="num">16</span>,         <span class="cm"># thread pool</span>
-    async_logging   = <span class="kw">True</span>,
-    http_retries    = <span class="num">7</span>,
-    http_timeout    = <span class="num">120</span>,
-    run_plan_table  = <span class="str">"<your_catalog>.<your_schema>.run_plan"</span>,
-    artifact_volume = <span class="str">"/Volumes/users/.../mlflow_artifacts"</span>,
-)</pre>
-              <div class="controls"><b>Tunes the bandwidth.</b> Higher concurrency reaches the 120 RPS tracking ceiling faster; retries + timeout absorb workspace HTTP jitter.</div>
+            <div class="decision-card">
+              <div class="when">if your access pattern is</div>
+              <div class="scenario">Skewed (few hot SKUs)</div>
+              <div class="turn">turn the knob</div>
+              <div class="knob-action">cache_size ↑ to 4096</div>
+              <div class="effect">LRU absorbs the hot set entirely · cold p50 only matters for the long-tail · stays on default <code>PyArrowLruModel</code>. Memory cost: <code>cache_size × per-model-size</code> per replica.</div>
             </div>
-          </div>
-
-          <div class="config-source">
-            <div class="src"><span class="k">cli args</span>src/main.py · argparse</div>
-            <div class="src"><span class="k">notebook</span>widgets in notebooks/demo.ipynb</div>
-            <div class="src"><span class="k">bundle vars</span>databricks.yml · ${var.catalog} ${var.schema} ${var.demand_table}</div>
+            <div class="decision-card">
+              <div class="when">if your access pattern is</div>
+              <div class="scenario">Uniform (all cold every time)</div>
+              <div class="turn">turn the knob</div>
+              <div class="knob-action">switch to PyArrowFooterIndexModel</div>
+              <div class="effect"><b>4× faster cold</b> · pre-loaded footer index eliminates per-lookup file enumeration · pays the cost as one-time startup. Replicas need to be long-running to amortize.</div>
+            </div>
+            <div class="decision-card">
+              <div class="when">if your serving fleet has</div>
+              <div class="scenario">Many short-lived replicas</div>
+              <div class="turn">turn the knob</div>
+              <div class="knob-action">stay on PyArrowLruModel</div>
+              <div class="effect"><code>load_context</code> ~2.6 s vs FootIndex 30+ s · the default wins on cold-start time. Pair with a small <code>cache_size</code> to keep memory low per replica.</div>
+            </div>
           </div>
         </div>
-
         <footer class="specs">
-          <div class="spec-block"><span class="lbl">entities</span><span class="val">GenerationSpec · LoggingConfig</span></div>
-          <div class="spec-block"><span class="lbl">first test</span><span class="val">5 × 100k × 100 = <span class="signal">1.5M</span></span></div>
-          <div class="spec-block"><span class="lbl">smoke test</span><span class="val">2 × 100 × 10 = <span class="signal">6k</span></span></div>
-          <div class="spec-block"><span class="lbl">strategy</span><span class="val">--strategy collapsed_sku (default)</span></div>
+          <div class="spec-block"><span class="lbl">single config object</span><span class="val">domains.entities.WorkloadBudget</span></div>
+          <div class="spec-block"><span class="lbl">override at</span><span class="val">runtime · CLI · widget · bundle var</span></div>
+          <div class="spec-block"><span class="lbl">measured impact</span><span class="val">linear in N_SKU</span></div>
+          <div class="spec-block"><span class="lbl">no cluster change</span><span class="val signal">tune in code</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 7 — DEPLOYMENT (DATABRICKS ASSET BUNDLE)
+         SLIDE 08 — ACT 3 · FUTURE OPTIMIZATIONS
          ================================================================ -->
-    <section class="slide" data-label="Deployment">
+    <section class="slide" data-label="Future optimizations">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§06 · deploy</span>
-            <span>databricks asset bundle</span>
+            <span class="tag">§08 · futures</span>
+            <span>ordered by complexity</span>
             <span class="arrow">→</span>
-            <span>three resources</span>
+            <span>pick by need</span>
           </div>
-          <div class="memo-right">slide 11 / 12</div>
+          <div class="memo-right">slide 09 / 10</div>
         </header>
-
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">deployment · databricks asset bundle</div>
-            <h2 class="section-title">Three resources, <em>one command.</em></h2>
-            <p class="section-dek">The bundle ships a job, an all-purpose cluster, and the wheel + workspace files in one deploy. uv-managed dependencies are exported to <code>requirements.txt</code> and installed by the notebook via <code>%pip install -r ../requirements.txt</code>. Per-region experiments are created at runtime by the strategy adapters.</p>
+            <div class="section-eyebrow">act 3 · recommendations</div>
+            <h2 class="section-title">Four optimizations. <em>Ordered by lift.</em></h2>
+            <p class="section-dek">The architecture today is validated to 300k models with sub-second cold lookup. The path to 1M+ SKU/region runs through these four optimizations, ordered low-effort to high. Pick by your bottleneck — none are required if you're under ~50k SKU/region.</p>
           </div>
-
-          <div class="bundle">
-            <div class="bundle-row job">
-              <div class="lbl">Job<span class="file">resources/jobs.yml</span></div>
-              <div class="what"><b><code>spark_python_task</code></b> running <code>src/main.py</code> on its own job cluster. Reads parameters from <code>databricks.yml</code> variables (strategy, regions, skus, concurrency, table names). Wheel installed as a task library.</div>
-              <div class="specs-mini">
-                <div><span class="k">task type:</span> <span class="v">spark_python_task</span></div>
-                <div><span class="k">cluster:</span> <span class="v">job cluster · DBR 15.4 ML · Photon</span></div>
-                <div><span class="k">library:</span> <span class="v">dist/*.whl</span></div>
-              </div>
+          <div class="future-grid">
+            <div class="future-card lift-1">
+              <span class="lift">small lift · in-config</span>
+              <h4>Parallelize footer reads at load_context</h4>
+              <div class="impact">startup: 30 s → ~5 s · cold p50 unchanged</div>
+              <div class="body">FootIndex's per-replica startup time scales linearly with file count today (sequential <code>ParquetFile</code> opens). Swap the inner loop for a <code>ThreadPoolExecutor</code> across files — IO-bound work parallelizes 6-8× on the serving driver. <b>No API surface change.</b></div>
             </div>
-
-            <div class="bundle-row cluster">
-              <div class="lbl">Cluster<span class="file">resources/clusters.yml</span></div>
-              <div class="what">All-purpose cluster for the notebook. Workers on <b>m5d.2xlarge</b> (32GB + 300GB NVMe instance-store — Spark spill needs the SSD at 50M-row scale). Driver on <b>i3.4xlarge</b> (16 vCPU / 122GB) for the ThreadPoolExecutor fanout.</div>
-              <div class="specs-mini">
-                <div><span class="k">workers:</span> <span class="v">6 × m5d.2xlarge · on-demand</span></div>
-                <div><span class="k">driver:</span> <span class="v">i3.4xlarge · 16 vCPU / 122 GB</span></div>
-                <div><span class="k">env vars:</span> <span class="v">DISABLE_MLFLOWDBFS=true</span></div>
-              </div>
+            <div class="future-card lift-2">
+              <span class="lift">medium lift · serving-side</span>
+              <h4>Vectorize predict() across SKUs in a batch</h4>
+              <div class="impact">batch throughput ↑↑ · per-row predict cost amortizes</div>
+              <div class="body">Today's <code>predict()</code> loops over input rows, calling <code>model.predict([row])</code> per row. Group by sku at predict-time and call <code>model.predict(group)</code> once per distinct sku — sklearn's vectorized path saves the per-row overhead. <b>Drop-in</b> in <code>PyArrowLruModel.predict</code>.</div>
             </div>
-
-            <div class="bundle-row bundle">
-              <div class="lbl">Bundle<span class="file">databricks.yml</span></div>
-              <div class="what">Single source of truth for catalog/schema/strategy/scale defaults. <code>artifacts:</code> block builds the wheel via <code>uv build --wheel</code>. <code>sync</code> uploads <code>src/</code>, <code>notebooks/</code>, <code>requirements.txt</code> to the workspace.</div>
-              <div class="specs-mini">
-                <div><span class="k">variables:</span> <span class="v">catalog, schema, demand_table, strategy, regions, skus, concurrency</span></div>
-                <div><span class="k">artifacts:</span> <span class="v">multimodel_wheel via uv build</span></div>
-                <div><span class="k">profile:</span> <span class="v">e2-field-demo-west</span></div>
-              </div>
+            <div class="future-card lift-3">
+              <span class="lift">larger lift · storage</span>
+              <h4>Move model blobs out of inline parquet</h4>
+              <div class="impact">unlocks 1M+ SKU/region · removes write OOM ceiling</div>
+              <div class="body">At ~100k SKU/region the 4.4 MB inline blob becomes the bottleneck (writes get huge, even with bounded tasks). Store models as <b>separate small files</b> keyed by SKU — parquet holds just the lookup keys + filenames. Serving opens one ~5 MB file per cold lookup. Same row-group-skip logic on the metadata side; blob IO becomes O(1).</div>
             </div>
-          </div>
-
-          <div class="bundle-cmd">
-            <code>databricks --profile e2-field-demo-west bundle deploy -t dev</code>
+            <div class="future-card lift-4">
+              <span class="lift">strategic · platform path</span>
+              <h4>Lakebase point-lookup tier</h4>
+              <div class="impact">sub-10 ms cold · SLA-backed · scales beyond UC Volume FUSE</div>
+              <div class="body">When serving traffic exceeds what UC Volume FUSE handles under concurrency, sync the artifact table to a <b>Lakebase</b> (managed Postgres) instance via UC. <code>LakebaseLookupModel</code> ships as code-only in the package today — instantiate with a Lakebase instance name and you've got <code>SELECT model_blob_bytes WHERE sku=?</code> point lookups in sub-10 ms. The cleanest production-scale answer when latency under load matters more than zero new infra.</div>
+            </div>
           </div>
         </div>
-
         <footer class="specs">
-          <div class="spec-block"><span class="lbl">deps</span><span class="val">uv.lock → requirements.txt (cluster install)</span></div>
-          <div class="spec-block"><span class="lbl">experiments</span><span class="val">created at runtime · Demand_Forecasting-&lt;REGION&gt;</span></div>
-          <div class="spec-block"><span class="lbl">uc volume</span><span class="val">bootstrap cell · CREATE VOLUME IF NOT EXISTS</span></div>
-          <div class="spec-block"><span class="lbl">idempotent</span><span class="val"><span class="signal">yes</span> · drop & re-run safe</span></div>
+          <div class="spec-block"><span class="lbl">today's validated ceiling</span><span class="val">300k models · 839 ms cold p50</span></div>
+          <div class="spec-block"><span class="lbl">order of operations</span><span class="val">parallel · vectorize · external blobs · Lakebase</span></div>
+          <div class="spec-block"><span class="lbl">required for &gt; 100k/region</span><span class="val signal">external blob storage</span></div>
+          <div class="spec-block"><span class="lbl">required for &gt; 1M total</span><span class="val signal">Lakebase or equivalent</span></div>
         </footer>
       </div>
     </section>
 
     <!-- ================================================================
-         SLIDE 8 — RUN IT YOURSELF
+         SLIDE 09 — CLOSING · IMPLEMENTATION MAP
          ================================================================ -->
-    <section class="slide" data-label="Run it yourself">
+    <section class="slide" data-label="Implementation map">
       <div class="frame">
         <header class="memo">
           <div class="memo-left">
-            <span class="tag">§07 · run</span>
-            <span>deploy · run · iterate</span>
+            <span class="tag">§09 · ship it</span>
+            <span>file map · commands · next steps</span>
             <span class="arrow">→</span>
-            <span>commands + next steps</span>
+            <span>your turn</span>
           </div>
-          <div class="memo-right">slide 12 / 12</div>
+          <div class="memo-right">slide 10 / 10</div>
         </header>
-
         <div class="body-stack">
           <div>
-            <div class="section-eyebrow">run it yourself</div>
+            <div class="section-eyebrow">closing</div>
             <h2 class="section-title">From <em>git clone</em> to first benchmark.</h2>
-            <p class="section-dek">The demo is idempotent — schema, volume, and tables are created on first run via <code>CREATE … IF NOT EXISTS</code>. Drop the run-plan table and re-run to reseed the benchmark. Per-experiment runs are immutable; subsequent runs append, never overwrite.</p>
+            <p class="section-dek">Where to look in the codebase when you go to implement. The full file map below tracks the four architectural moves; the right column has the smallest possible "run it" path. Everything is bundle-deployed — no manual cluster setup, no ad-hoc tables.</p>
           </div>
-
-          <div class="run-grid">
-            <div class="run-block">
-              <h4>Three commands.</h4>
-              <div class="run-cmd">
-<span class="cm"># 1. Build deps lockfile (one-time)</span>
-<span class="prompt">$</span>uv export --format requirements-txt <span class="arg">\</span>
-   --no-hashes --no-emit-project <span class="arg">\</span>
-   --no-dev &gt; requirements.txt
-
-<span class="cm"># 2. Deploy bundle</span>
-<span class="prompt">$</span>databricks --profile <span class="arg">e2-field-demo-west</span> <span class="arg">\</span>
-   bundle deploy -t dev
-
-<span class="cm"># 3. Run the job</span>
-<span class="prompt">$</span>databricks --profile <span class="arg">e2-field-demo-west</span> <span class="arg">\</span>
-   bundle run multimodel_registration -t dev
-              </div>
+          <div class="impl-grid">
+            <div class="impl-files">
+              <h4>file map</h4>
+              <div class="file-row"><span class="what">uc_table strategy + bundle write</span><span class="where">adapters/logging/uc_table.py</span></div>
+              <div class="file-row"><span class="what">WorkloadBudget (memory + concurrency knobs)</span><span class="where">domains/entities.py</span></div>
+              <div class="file-row"><span class="what">Run plan persist (memory-bounded)</span><span class="where">adapters/storage/delta_run_plan.py</span></div>
+              <div class="file-row"><span class="what">Demand + run plan expand-and-rekey</span><span class="where">utils/scaling.py</span></div>
+              <div class="file-row"><span class="what">PyArrowLruModel + FootIndex benchmark</span><span class="where">notebooks/demo.ipynb (cells 31, 32)</span></div>
+              <div class="file-row"><span class="what">LakebaseLookupModel (code-only)</span><span class="where">adapters/serving/lakebase.py</span></div>
+              <div class="file-row"><span class="what">Local pyspark layout tests</span><span class="where">tests/test_bundle_write.py</span></div>
+              <div class="file-row"><span class="what">Detailed architecture handout</span><span class="where">docs/scaling-architecture-v2.md</span></div>
             </div>
+            <div class="impl-commands">
+              <h4>run it</h4>
+<pre><span class="cmt"># sanity: local pytest (sub-30s, no Databricks)</span>
+<span class="pmt">$</span> pytest tests/test_bundle_write.py -v
 
-            <div class="run-block">
-              <h4>What to try next.</h4>
-              <ul class="next-list">
-                <li>Run the notebook interactively — every cell is annotated; widgets let you dial scope without redeploying.</li>
-                <li>Swap <code>--strategy nested_model</code> to see the run-count vs throughput trade-off live.</li>
-                <li>Replace <code>model_training_fn</code> in TrainingSimulator with a real <code>fit() → pickle.dumps</code> to make it an actual distributed trainer.</li>
-                <li>Add a new logging strategy: implement <code>ModelLoggingStrategyPort</code>, register it in <code>main.py</code>, deploy.</li>
-              </ul>
-              <div class="contact">
-                <span class="k">contact</span>
-                Akil Thomas · akil.thomas@databricks.com<br>
-                dbrx-multimodel-deployment-demo · v0.1.0
-              </div>
+<span class="cmt"># deploy + smoke at 1k SKU</span>
+<span class="pmt">$</span> databricks bundle deploy --target dev
+<span class="pmt">$</span> databricks bundle run \
+    multimodel_registration \
+    --target dev \
+    -- --strategy uc_table --skus 1000
+
+<span class="cmt"># scale up — same command</span>
+<span class="pmt">$</span> databricks bundle run \
+    multimodel_registration \
+    --target dev \
+    -- --strategy uc_table --skus 20000
+
+<span class="cmt"># override knobs via bundle vars</span>
+<span class="pmt">$</span> databricks bundle run ... \
+    -- --skus 50000 --concurrency 16</pre>
             </div>
           </div>
         </div>
-
         <footer class="specs">
-          <div class="spec-block"><span class="lbl">repo</span><span class="val">dbrx-multimodel-deployment-demo</span></div>
-          <div class="spec-block"><span class="lbl">workspace</span><span class="val"><your-workspace>.cloud.databricks.com</span></div>
-          <div class="spec-block"><span class="lbl">prd</span><span class="val">prds/PRD_demo.md</span></div>
-          <div class="spec-block"><span class="lbl">end</span><span class="val"><span class="signal">memo · 001 · fin</span></span></div>
+          <div class="spec-block"><span class="lbl">prepared by</span><span class="val">Akil Thomas · Field Engineering</span></div>
+          <div class="spec-block"><span class="lbl">presentation</span><span class="val">multimodel-mlflow-architecture-v2.html</span></div>
+          <div class="spec-block"><span class="lbl">handout</span><span class="val">docs/scaling-architecture-v2.md</span></div>
+          <div class="spec-block"><span class="lbl">version</span><span class="val signal">v2 · implementation guide</span></div>
         </footer>
       </div>
     </section>
+
 
   </div>
-  <div class="deck-counter"><span class="cur">01</span><span class="sep">/</span><span class="tot">08</span></div>
+  <div class="deck-counter"><span class="cur">01</span><span class="sep">/</span><span class="tot">10</span></div>
 </div>
 
 <script>

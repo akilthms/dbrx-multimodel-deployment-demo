@@ -17,7 +17,7 @@ per region:
   experiment "Demand_Forecasting-<REGION>_endpoint_02"   →  1 MLflow run
                                                               ↓ tags:
                                                               model_bundle_uri = /Volumes/.../<region>/bundle_parquet
-                                                              demand_forecasting_table = users.akil_thomas.demand_forecasting_artifacts
+                                                              demand_forecasting_table = <your_catalog>.<your_schema>.demand_forecasting_artifacts
                                                               genie_space_id = …
 ```
 
