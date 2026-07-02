@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Multi-Model Demand Forecasting · Architecture (v3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   v3 — same spirit as the v2 deck (dark slate, Fraunces + mono, orange
+   accent) but rebuilt to the impeccable house rules:
+     · OKLCH colors, neutrals tinted toward the slate hue (no #000 / #fff)
+     · encoding is self-describing — COLOR = which concern, LINE-STYLE =
+       which relationship (solid flow / dotted reference / dashed response)
+     · accents live on a TOP border + a numbered badge, never a side stripe
+     · four customer concerns numbered 01..04 so the story is enumerated
+   Single fixed 1920x1080 stage, scaled to fit the window.
+   ===================================================================== */
+:root {
+  --bg:        oklch(0.18 0.012 260);
+  --bg-deep:   oklch(0.13 0.010 260);
+  --bg-elev:   oklch(0.235 0.014 260);
+  --bg-tint:   oklch(0.28 0.016 260);
+  --hairline:      oklch(0.90 0.01 90 / 0.12);
+  --hairline-soft: oklch(0.90 0.01 90 / 0.07);
+  --text:      oklch(0.93 0.014 90);
+  --text-soft: oklch(0.74 0.012 90);
+  --text-mute: oklch(0.56 0.010 90);
+  /* concern hues */
+  --meta:     oklch(0.74 0.175 45);    /* 01 · metadata (UC Delta table) */
+  --meta-bg:  oklch(0.74 0.175 45 / 0.10);
+  --bundle:   oklch(0.80 0.13 165);    /* 02 · bundles (parquet) */
+  --bundle-bg:oklch(0.80 0.13 165 / 0.10);
+  --analysis: oklch(0.76 0.11 258);    /* 03 · analysis (Genie) */
+  --analysis-bg: oklch(0.76 0.11 258 / 0.10);
+  --serve:    oklch(0.83 0.13 95);     /* 04 · serving flow highlight */
+  --serve-bg: oklch(0.83 0.13 95 / 0.10);
+}
+
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg-deep); }
+.viewport { position: fixed; inset: 0; overflow: hidden; background: var(--bg-deep); }
+.stage {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden;
+  transform-origin: 0 0; background: var(--bg);
+  font-family: 'Space Grotesk', sans-serif; color: var(--text);
+}
+.stage::before {   /* faint vertical hairline rhythm */
+  content: ''; position: absolute; inset: 0;
+  background-image: linear-gradient(to right, var(--hairline-soft) 1px, transparent 1px);
+  background-size: 64px 100%; background-position: 120px 0; pointer-events: none;
+}
+@media print { html, body { overflow: visible; } .stage { transform: none !important; } }
+
+/* ---- Memo strip (top) ---- */
+.memo {
+  position: absolute; left: 120px; right: 110px; top: 46px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 20px; border-bottom: 1px solid var(--hairline);
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-soft);
+}
+.memo-left { display: flex; gap: 22px; align-items: center; }
+.memo .tag { background: var(--meta-bg); color: var(--meta); padding: 5px 11px; font-weight: 500; border-radius: 3px; }
+.memo .title { color: var(--text); letter-spacing: 0.08em; }
+.memo-right { color: var(--text-mute); }
+
+/* ---- Lane headers ---- */
+.lane {
+  position: absolute; left: 120px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  letter-spacing: 0.20em; text-transform: uppercase; color: var(--text-mute);
+  display: flex; align-items: baseline; gap: 14px;
+}
+.lane .n { color: var(--serve); font-weight: 700; letter-spacing: 0.1em; }
+.lane .n.build { color: var(--meta); }
+.lane strong { color: var(--text); font-weight: 600; letter-spacing: 0.12em; }
+/* thin band tint behind each lane to group it without a container box */
+.band { position: absolute; left: 104px; right: 92px; border-radius: 8px; background: oklch(0.90 0.01 90 / 0.018); z-index: 0; }
+
+/* ---- Connector layer ---- */
+.wires { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 1; }
+
+/* edge labels rendered as HTML so they get a legible plate + never clip */
+.elabel {
+  position: absolute; z-index: 3; transform: translate(-50%, -50%);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em;
+  color: var(--text-soft); background: var(--bg); padding: 3px 8px; border-radius: 3px;
+  white-space: nowrap; border: 1px solid var(--hairline-soft);
+}
+.elabel.flow { color: var(--text); }
+.elabel.ref  { color: var(--text-mute); font-style: italic; }
+
+/* ---- Nodes ---- */
+.node {
+  position: absolute; z-index: 2; box-sizing: border-box; width: var(--w);
+  background: var(--bg-elev); border: 1px solid var(--hairline);
+  border-radius: 6px; padding: 13px 18px 14px;
+}
+.node--meta    { border-top: 2px solid var(--meta);     background: color-mix(in oklch, var(--bg-elev), var(--meta-bg)); }
+.node--bundle  { border-top: 2px solid var(--bundle);   background: color-mix(in oklch, var(--bg-elev), var(--bundle-bg)); }
+.node--analysis{ border-top: 2px solid var(--analysis); background: color-mix(in oklch, var(--bg-elev), var(--analysis-bg)); }
+.node--serve   { border-top: 2px solid var(--serve); }
+.node--actor   { background: var(--bg); border-style: dashed; border-color: var(--hairline); }
+
+.node__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.badge {
+  flex: none; width: 26px; height: 26px; border-radius: 5px;
+  display: grid; place-items: center; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 700; color: var(--bg-deep);
+}
+.badge.meta { background: var(--meta); } .badge.bundle { background: var(--bundle); } .badge.analysis { background: var(--analysis); }
+.kicker { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-mute); }
+.kicker.meta { color: var(--meta); } .kicker.bundle { color: var(--bundle); } .kicker.analysis { color: var(--analysis); }
+.node h3 { margin: 0; font-family: 'Fraunces', serif; font-weight: 500; font-style: italic; font-size: 26px; line-height: 1.05; letter-spacing: -0.02em; color: var(--text); }
+.node h3.sm { font-size: 22px; }
+.node .slug { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-mute); margin-top: 6px; word-break: break-all; }
+.node .desc { font-family: 'Space Grotesk', sans-serif; font-size: 14px; color: var(--text-soft); line-height: 1.5; margin-top: 8px; }
+.node .desc b { color: var(--text); font-weight: 600; }
+.mono-inline { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--bundle); background: var(--bundle-bg); padding: 1px 6px; border-radius: 3px; }
+.fields { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-soft); line-height: 1.6; margin-top: 7px; white-space: nowrap; }
+.fields .k { color: var(--text); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-soft); background: oklch(0.90 0.01 90 / 0.06); border: 1px solid var(--hairline); padding: 4px 9px; border-radius: 3px; }
+.ptr { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-soft); line-height: 1.9; margin-top: 6px; }
+.ptr .p { color: var(--meta); }
+
+/* routing map */
+.rmap { margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; border-top: 1px solid var(--hairline); }
+.rmap .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--hairline-soft); }
+.rmap .row:last-child { border-bottom: none; }
+.rmap .reg { color: var(--analysis); }
+.rmap .to { color: var(--text-mute); }
+.rmap .ep { color: var(--serve); font-weight: 500; }
+.hint { font-family: 'Space Grotesk', sans-serif; font-size: 12.5px; color: var(--text-mute); margin-top: 10px; line-height: 1.45; }
+.hint b { color: var(--text-soft); font-weight: 600; }
+
+/* endpoint grid */
+.grid-head, .epgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.grid-head { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--text-mute); text-align: center; }
+.epgrid { margin-top: 6px; }
+.eptile { font-family: 'JetBrains Mono', monospace; font-size: 12px; text-align: center; padding: 9px 0; border: 1px solid var(--hairline); border-radius: 3px; color: var(--text-soft); background: oklch(0.90 0.01 90 / 0.02); }
+.eptile.on { background: var(--serve-bg); color: var(--serve); border-color: var(--serve); font-weight: 700; }
+
+/* predict steps */
+.steps { list-style: none; margin: 12px 0 0; padding: 0; counter-reset: s; }
+.steps li { position: relative; padding-left: 30px; margin-bottom: 9px; font-family: 'Space Grotesk', sans-serif; font-size: 13.5px; color: var(--text-soft); line-height: 1.5; }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 1px; width: 18px; height: 18px; border-radius: 4px; background: var(--bundle-bg); color: var(--bundle); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.steps b { color: var(--text); font-weight: 600; }
+.lat { margin-top: 14px; display: inline-flex; gap: 18px; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.lat .k { color: var(--text-mute); }
+.lat .cold { color: var(--meta); } .lat .warm { color: var(--bundle); }
+
+/* lakebase note (no side stripe — full border, muted) */
+.note { position: absolute; z-index: 2; box-sizing: border-box; width: var(--w); background: var(--bg); border: 1px dashed var(--hairline); border-radius: 6px; padding: 12px 18px; display: flex; align-items: center; gap: 14px; }
+.note .tagp { flex: none; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--analysis); }
+.note .t { font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: var(--text-soft); line-height: 1.45; }
+.note .t b { color: var(--text); font-weight: 600; }
+
+/* key / how to read (replaces the corner legend) */
+.key { position: absolute; z-index: 2; box-sizing: border-box; width: var(--w); background: var(--bg); border: 1px solid var(--hairline); border-radius: 6px; padding: 16px 20px; }
+.key h4 { margin: 0 0 12px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-mute); }
+.key .grp { margin-bottom: 12px; }
+.key .lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 7px; }
+.key .row { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: var(--text-soft); margin: 6px 0; }
+.key .sw { width: 22px; height: 3px; border-radius: 2px; flex: none; }
+.key .sw.solid { background: var(--text); }
+.key .sw.dot { background: repeating-linear-gradient(90deg, var(--text-mute) 0 3px, transparent 3px 7px); }
+.key .sw.dash { background: repeating-linear-gradient(90deg, var(--text-soft) 0 7px, transparent 7px 13px); }
+.key .dotc { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.key .dotc.meta { background: var(--meta); } .key .dotc.bundle { background: var(--bundle); } .key .dotc.analysis { background: var(--analysis); }
+
+/* ---- Specs strip ---- */
+.specs { position: absolute; left: 120px; right: 110px; bottom: 42px; display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; align-items: end; padding-top: 18px; border-top: 1px solid var(--hairline); font-family: 'JetBrains Mono', monospace; }
+.spec .lbl { display: block; color: var(--text-mute); letter-spacing: 0.16em; text-transform: uppercase; font-size: 10px; margin-bottom: 7px; }
+.spec .val { font-size: 15px; color: var(--text); font-weight: 500; }
+.spec .val .hi { color: var(--meta); }
+.spec .val .mut { color: var(--text-mute); }
+</style>
+</head>
+<body>
+<div class="viewport">
+  <div class="stage">
+
+    <div class="memo">
+      <div class="memo-left">
+        <span class="tag">Architecture</span>
+        <span class="title">Multi-Model Demand Forecasting · Build &amp; Serve</span>
+      </div>
+      <div class="memo-right">Unity Catalog · MLflow · Genie · Model Serving</div>
+    </div>
+
+    <!-- lane band tints -->
+    <div class="band" style="top:132px; height:440px;"></div>
+    <div class="band" style="top:588px; height:372px;"></div>
+
+    <div class="lane" style="top:110px;"><span class="n build">01–03</span> <strong>Build</strong> offline (uc_table strategy) · write once per region</div>
+    <div class="lane" style="top:566px;"><span class="n">04</span> <strong>Serve</strong> online · production inference per request</div>
+
+    <!-- ============ connector layer ============ -->
+    <svg class="wires" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+      <defs>
+        <marker id="a-flow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="oklch(0.93 0.014 90)"/></marker>
+        <marker id="a-serve" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0,0 L6.5,3 L0,6 Z" fill="oklch(0.83 0.13 95)"/></marker>
+        <marker id="a-ref" markerWidth="7" markerHeight="7" refX="5.5" refY="2.5" orient="auto"><path d="M0,0 L5.5,2.5 L0,5 Z" fill="oklch(0.56 0.010 90)"/></marker>
+        <marker id="a-soft" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="oklch(0.74 0.012 90)"/></marker>
+      </defs>
+
+      <!-- BUILD: run plan writes the three stores (solid flow) -->
+      <path d="M372,325 C420,325 405,220 452,220" fill="none" stroke="oklch(0.93 0.014 90)" stroke-width="1.6" marker-end="url(#a-flow)"/>
+      <path d="M372,325 C420,325 405,368 452,368" fill="none" stroke="oklch(0.93 0.014 90)" stroke-width="1.6" marker-end="url(#a-flow)"/>
+      <path d="M372,325 C420,325 405,502 452,502" fill="none" stroke="oklch(0.93 0.014 90)" stroke-width="1.6" marker-end="url(#a-flow)"/>
+
+      <!-- BUILD: stores are pointed at by the deployable runs (dotted reference) -->
+      <path d="M814,220 C880,220 890,318 912,322" fill="none" stroke="oklch(0.56 0.010 90)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#a-ref)"/>
+      <path d="M814,368 C880,368 890,344 912,344" fill="none" stroke="oklch(0.56 0.010 90)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#a-ref)"/>
+      <path d="M814,502 C880,502 890,370 912,366" fill="none" stroke="oklch(0.56 0.010 90)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#a-ref)"/>
+
+      <!-- CROSS-LANE references (dotted): deployed-as + reads-bundle -->
+      <path d="M1079,492 L1079,612" fill="none" stroke="oklch(0.56 0.010 90)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#a-ref)"/>
+      <path d="M814,392 L860,392 L860,592 L1576,592 L1576,616" fill="none" stroke="oklch(0.80 0.13 165)" stroke-width="1.4" stroke-dasharray="2 4" marker-end="url(#a-ref)"/>
+
+      <!-- SERVE: request flow (solid, serve-colored, primary) -->
+      <path d="M300,748 L432,748" fill="none" stroke="oklch(0.83 0.13 95)" stroke-width="2.2" marker-end="url(#a-serve)"/>
+      <path d="M782,748 C822,748 822,752 862,752" fill="none" stroke="oklch(0.83 0.13 95)" stroke-width="2.2" marker-end="url(#a-serve)"/>
+      <path d="M1282,752 C1322,752 1322,742 1352,742" fill="none" stroke="oklch(0.83 0.13 95)" stroke-width="2.2" marker-end="url(#a-serve)"/>
+
+      <!-- SERVE: response relayed back, hop by hop, in the same gaps (dashed) -->
+      <path d="M1352,764 L1290,764" fill="none" stroke="oklch(0.74 0.012 90)" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#a-soft)"/>
+      <path d="M862,764 L790,764" fill="none" stroke="oklch(0.74 0.012 90)" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#a-soft)"/>
+      <path d="M432,764 L306,764" fill="none" stroke="oklch(0.74 0.012 90)" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#a-soft)"/>
+    </svg>
+
+    <!-- edge labels -->
+    <div class="elabel flow" style="left:412px; top:302px;">writes</div>
+    <div class="elabel ref"  style="left:863px; top:300px;">carries pointers</div>
+    <div class="elabel ref"  style="left:1240px; top:592px;">reads bundle at inference</div>
+    <div class="elabel ref"  style="left:1079px; top:566px;">deployed as</div>
+    <div class="elabel flow" style="left:366px; top:734px;">request (region, sku)</div>
+    <div class="elabel flow" style="left:822px; top:730px;">route to E_n</div>
+    <div class="elabel flow" style="left:1317px; top:724px;">selected E_n</div>
+
+    <!-- ============ BUILD lane ============ -->
+    <div class="node node--actor" style="--w:250px; left:120px; top:238px;">
+      <div class="node__head"><span class="kicker">source</span></div>
+      <h3 class="sm">Training run plan</h3>
+      <div class="desc">One Spark DataFrame keyed by <b>region × sku × model_name</b>, carrying model bytes, params and metrics.</div>
+    </div>
+
+    <div class="node node--meta" style="--w:362px; left:452px; top:150px;">
+      <div class="node__head"><span class="badge meta">01</span><span class="kicker meta">Log · model metadata</span></div>
+      <h3 class="sm">UC Delta table</h3>
+      <div class="slug">demand_forecasting_artifacts</div>
+      <div class="fields"><span class="k">region · sku · model_name</span> · rmse · mape · r2</div>
+    </div>
+
+    <div class="node node--bundle" style="--w:362px; left:452px; top:298px;">
+      <div class="node__head"><span class="badge bundle">02</span><span class="kicker bundle">Store · model bundles</span></div>
+      <h3 class="sm">Per-region parquet bundles</h3>
+      <div class="slug">/Volumes/…/&lt;region&gt;/bundle_parquet</div>
+      <div class="chips"><span class="chip">64 buckets</span><span class="chip">16 MB row groups</span><span class="chip">sorted</span></div>
+    </div>
+
+    <div class="node node--analysis" style="--w:362px; left:452px; top:446px;">
+      <div class="node__head"><span class="badge analysis">03</span><span class="kicker analysis">Analyze · performance</span></div>
+      <h3 class="sm">Genie space</h3>
+      <div class="desc">Natural language to SQL over the Delta table.</div>
+    </div>
+
+    <div class="node node--actor" style="--w:334px; left:912px; top:250px;">
+      <div class="node__head"><span class="kicker">bridge to serving</span></div>
+      <h3 class="sm">15 deployable MLflow runs</h3>
+      <div class="slug">5 regions × 3 endpoints/region</div>
+      <div class="desc">Off the tracking-API hot path: <b>15 create_run calls total</b>, at any SKU scale. Each run holds pointers to:</div>
+      <div class="ptr"><span class="p">→</span> model_bundle_uri<br><span class="p">→</span> demand_forecasting_table<br><span class="p">→</span> genie_space_id</div>
+    </div>
+
+    <!-- how-to-read key (replaces corner legend; encoding stated once) -->
+    <div class="key" style="--w:452px; left:1348px; top:146px;">
+      <h4>How to read this diagram</h4>
+      <div class="grp">
+        <div class="lbl">color · which concern</div>
+        <div class="row"><span class="dotc meta"></span> Model metadata (UC Delta table)</div>
+        <div class="row"><span class="dotc bundle"></span> Model bundles (parquet, serving store)</div>
+        <div class="row"><span class="dotc analysis"></span> Performance analysis (Genie)</div>
+      </div>
+      <div class="grp" style="margin-bottom:0;">
+        <div class="lbl">line · which relationship</div>
+        <div class="row"><span class="sw solid"></span> Data / request flow</div>
+        <div class="row"><span class="sw dot"></span> Reference: points at, deploys, reads</div>
+        <div class="row"><span class="sw dash"></span> Response returned to the caller</div>
+      </div>
+    </div>
+
+    <!-- ============ SERVE lane ============ -->
+    <div class="node node--actor" style="--w:180px; left:120px; top:694px;">
+      <div class="node__head"><span class="kicker">client</span></div>
+      <h3 class="sm">User</h3>
+      <div class="desc">Scores one <b>region</b> + <b>sku</b>.</div>
+    </div>
+
+    <div class="node node--serve" style="--w:350px; left:432px; top:616px;">
+      <div class="node__head"><span class="kicker">tiny stateless service</span></div>
+      <h3 class="sm">Model router endpoint</h3>
+      <div class="desc">Looks up which endpoint owns the SKU, forwards the request, relays the reply.</div>
+      <div class="rmap">
+        <div class="row"><span><span class="reg">WEST</span> · SKU-000123</span><span><span class="to">→</span> <span class="ep">E_WEST_1</span></span></div>
+        <div class="row"><span><span class="reg">WEST</span> · SKU-048907</span><span><span class="to">→</span> <span class="ep">E_WEST_2</span></span></div>
+        <div class="row"><span><span class="reg">NE</span> · SKU-000042</span><span><span class="to">→</span> <span class="ep">E_NE_0</span></span></div>
+      </div>
+      <div class="hint"><b>15 endpoints = 5 regions × 3 sub-groups.</b> Each endpoint owns a shard of its region's SKUs.</div>
+    </div>
+
+    <div class="node node--actor" style="--w:420px; left:862px; top:612px;">
+      <div class="node__head"><span class="kicker">model serving fleet · E_region_idx</span></div>
+      <h3 class="sm">Model endpoints</h3>
+      <div class="grid-head"><span>NE</span><span>SE</span><span>MW</span><span>SW</span><span>W</span></div>
+      <div class="epgrid">
+        <div class="eptile">NE·0</div><div class="eptile">SE·0</div><div class="eptile">MW·0</div><div class="eptile">SW·0</div><div class="eptile">W·0</div>
+        <div class="eptile">NE·1</div><div class="eptile">SE·1</div><div class="eptile">MW·1</div><div class="eptile">SW·1</div><div class="eptile on">W·1</div>
+        <div class="eptile">NE·2</div><div class="eptile">SE·2</div><div class="eptile">MW·2</div><div class="eptile">SW·2</div><div class="eptile">W·2</div>
+      </div>
+      <div class="hint">Request lands on the one endpoint holding the SKU: here <span style="color:var(--serve);font-family:'JetBrains Mono',monospace;">E_WEST_1</span>.</div>
+    </div>
+
+    <div class="node node--serve" style="--w:448px; left:1352px; top:616px;">
+      <div class="node__head"><span class="kicker">inside E_n · predict()</span></div>
+      <h3 class="sm">Per-SKU model lookup</h3>
+      <ol class="steps">
+        <li><b>Parquet index lookup</b> by (region, sku): bucket prune, then row-group skip via min/max stats</li>
+        <li><b>Unpickle</b> the matching model bytes</li>
+        <li><b>model.predict(features)</b>, return the forecast</li>
+      </ol>
+      <div class="lat"><span class="k">cold</span> <span class="cold">839 ms p50</span> <span class="k">warm</span> <span class="warm">33 ms</span></div>
+    </div>
+
+    <div class="note" style="--w:448px; left:1352px; top:872px;">
+      <span class="tagp">production scale</span>
+      <span class="t"><b>Next:</b> sync the artifact table to <b>Lakebase</b> (managed Postgres) for point lookups near <span class="mono-inline" style="color:var(--analysis);background:var(--analysis-bg);">10 ms</span>.</span>
+    </div>
+
+    <!-- ============ Specs strip ============ -->
+    <div class="specs">
+      <div class="spec"><span class="lbl">Validated scale</span><span class="val"><span class="hi">300k</span> models · 5 regions × 20k SKU × 3 model_names</span></div>
+      <div class="spec"><span class="lbl">Cold serving lookup</span><span class="val">839 ms p50 <span class="mut">(+29% across 20× SKU)</span></span></div>
+      <div class="spec"><span class="lbl">MLflow tracking load</span><span class="val">15 runs total, off hot path</span></div>
+      <div class="spec"><span class="lbl">Serving lookup store</span><span class="val">Parquet index, then Lakebase</span></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  const stage = document.querySelector('.stage');
+  function fit() {
+    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform =
+      `translate(${(window.innerWidth - 1920 * s) / 2}px, ${(window.innerHeight - 1080 * s) / 2}px) scale(${s})`;
+  }
+  window.addEventListener('resize', fit);
+  fit();
+})();
+</script>
+</body>
+</html>
