@@ -1,5 +1,9 @@
 from dbrx_multimodel_registration.ports.data_generation import DataGeneratorPort
 from dbrx_multimodel_registration.ports.logging import ModelLoggingStrategyPort
+from dbrx_multimodel_registration.ports.serving import (
+    ServingDeploymentStrategyPort,
+    ShardMappingPort,
+)
 from dbrx_multimodel_registration.ports.storage import (
     ParentRunArtifactBundle,
     ParentRunArtifactWriterPort,
@@ -17,5 +21,7 @@ __all__ = [
     "ParentRunArtifactWriterPort",
     "ReferenceModelTrainerPort",
     "RunPlanRepositoryPort",
+    "ServingDeploymentStrategyPort",
+    "ShardMappingPort",
     "TrainingSimulatorPort",
 ]

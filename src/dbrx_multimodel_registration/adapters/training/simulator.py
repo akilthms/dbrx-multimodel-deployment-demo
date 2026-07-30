@@ -14,9 +14,9 @@ dataclasses via `SparkSchemaMixin.spark_schema()` — single source of truth.
 Memory note: each row carries the full model blob. At pandas→Arrow
 serialization (mapInPandas yield), Arrow materializes each row's bytes
 separately — no dedup. So a per-yield buffer of N rows allocates N × blob_size
-of Arrow memory. Tune `_YIELD_CHUNK` to keep N × blob_size within worker
-memory. The default of 100 assumes ~5MB blobs (~500MB per yield); lower it
-when the model serializes larger, or Python workers will be OOM-killed
+of Arrow memory. Tune the `yield_chunk` constructor arg to keep N × blob_size
+within worker memory. The default of 100 assumes ~5MB blobs (~500MB per yield);
+lower it when the model serializes larger, or Python workers will be OOM-killed
 mid-stream (surfaces as a JVM socket reset).
 """
 from __future__ import annotations
@@ -36,9 +36,9 @@ from dbrx_multimodel_registration.domains.entities import (
 
 _CROSS_SCHEMA = RunPlanKey.spark_schema()
 _OUTPUT_SCHEMA = TrainedModelRecord.spark_schema()
-# Small on purpose: per-yield Arrow buffer is roughly _YIELD_CHUNK * blob_size.
+# Small on purpose: per-yield Arrow buffer is roughly yield_chunk * blob_size.
 # 100 × 5MB ≈ 500MB per yield, well within standard worker memory.
-_YIELD_CHUNK = 100
+_DEFAULT_YIELD_CHUNK = 100
 
 
 class TrainingSimulator:
@@ -46,9 +46,20 @@ class TrainingSimulator:
 
     name = "broadcast_reuse"
 
-    def __init__(self, spark: SparkSession, partitions: int | None = None) -> None:
+    def __init__(
+        self,
+        spark: SparkSession,
+        partitions: int | None = None,
+        yield_chunk: int = _DEFAULT_YIELD_CHUNK,
+    ) -> None:
         self.spark = spark
         self.partitions = partitions
+        # Rows buffered per pandas→Arrow yield. Arrow materializes each row's
+        # blob separately (no dedup), so the per-yield buffer is roughly
+        # yield_chunk * blob_size. Lower this when the model serializes larger
+        # than ~5MB, or Python workers will be OOM-killed mid-stream (surfaces
+        # as a JVM socket reset). See the module docstring's memory note.
+        self.yield_chunk = yield_chunk
 
     def simulate(
         self,
@@ -101,7 +112,7 @@ class TrainingSimulator:
                             "metrics": rec.metrics,
                         }
                     )
-                    if len(buffer) >= _YIELD_CHUNK:
+                    if len(buffer) >= self.yield_chunk:
                         yield pd.DataFrame(buffer)
                         buffer = []
                 if buffer:
