@@ -1,0 +1,50 @@
+18:54:29 (+0s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+18:55:59 (+90s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+18:57:29 (+180s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+18:59:00 (+271s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:00:30 (+361s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:02:00 (+451s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:03:30 (+541s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:05:00 (+631s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:06:30 (+721s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:08:01 (+812s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:09:31 (+902s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:11:01 (+992s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:12:31 (+1082s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:14:01 (+1172s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:15:31 (+1262s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:17:02 (+1353s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:18:32 (+1443s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:20:02 (+1533s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:21:32 (+1623s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:23:02 (+1713s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:24:33 (+1804s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:26:03 (+1894s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:27:33 (+1984s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:29:03 (+2074s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:30:33 (+2164s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:32:03 (+2254s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:33:34 (+2345s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:35:04 (+2435s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:36:34 (+2525s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:38:04 (+2615s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:39:34 (+2705s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:41:05 (+2796s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:42:35 (+2886s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:44:05 (+2976s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:45:35 (+3066s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:47:05 (+3156s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:48:35 (+3247s) EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:50:59 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:52:59 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:54:59 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:56:59 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+19:59:00 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:01:00 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:03:00 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:05:00 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:07:00 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:09:01 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:11:01 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:13:01 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.
+20:15:01 EndpointStateConfigUpdate.IN_PROGRESS | EndpointStateReady.NOT_READY | Container creation pending.

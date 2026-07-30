@@ -1,0 +1,97 @@
+{
+  "events": [
+    {
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_SERVICE_EVENT",
+      "message": "Served entity `mmd_storage_probe-11` entered DEPLOYMENT_FAILED state: Container creation failed",
+      "timestamp": 1785293967163
+    },
+    {
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "ENDPOINT_CREATION_EVENT",
+      "message": "Endpoint created by akil.thomas@databricks.com.",
+      "timestamp": 1785279144783
+    },
+    {
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_SERVICE_EVENT",
+      "message": "Served entity `mmd_storage_probe-11` entered DEPLOYMENT_CREATING state: Pending Container Creation",
+      "timestamp": 1785279194706
+    },
+    {
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "ENDPOINT_UPDATE_EVENT",
+      "message": "Endpoint updated by akil.thomas@databricks.com.",
+      "timestamp": 1785279144795
+    },
+    {
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "ENDPOINT_UPDATE_EVENT",
+      "message": "Endpoint update failed for endpoint `mmd-storage-probe-750gb`, config version 1.",
+      "timestamp": 1785293967802
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CONTAINER_EVENT",
+      "message": "Container image creation initiated",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785290258237
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_SERVICE_EVENT",
+      "message": "Served entity creation failed for served entity `mmd_storage_probe-11`, config version 1. Error message: Container creation failed. Please see build logs for more information.",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785293967792
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CONTAINER_EVENT",
+      "message": "Container image creation initiated",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785282857296
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CONTAINER_EVENT",
+      "message": "Container image creation initiated",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785279157236
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CONTAINER_EVENT",
+      "message": "Container image creation initiated",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785286557606
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CONTAINER_EVENT",
+      "message": "Container image creation failed: internal error",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785293955265
+    },
+    {
+      "config_version": 1,
+      "endpoint_name": "mmd-storage-probe-750gb",
+      "event_type": "SERVED_ENTITY_CREATION_EVENT",
+      "message": "Served entity created for served entity `mmd_storage_probe-11`, config version 1.",
+      "served_entity_name": "mmd_storage_probe-11",
+      "served_model_name": "mmd_storage_probe-11",
+      "timestamp": 1785279152843
+    }
+  ]
+}

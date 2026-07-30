@@ -1,0 +1,59 @@
+{
+  "creation_timestamp": 1785338940000,
+  "creator": "akil.thomas@databricks.com",
+  "description": "",
+  "id": "b06a447217044633861407709436f810",
+  "last_updated_timestamp": 1785338940000,
+  "name": "mmd-storage-probe-500gb",
+  "pending_config": {
+    "config_version": 1,
+    "served_entities": [
+      {
+        "creation_timestamp": 1785338940000,
+        "creator": "akil.thomas@databricks.com",
+        "entity_name": "users.akil_thomas.mmd_storage_probe",
+        "entity_version": "12",
+        "name": "mmd_storage_probe-12",
+        "scale_to_zero_enabled": true,
+        "state": {
+          "deployment": "DEPLOYMENT_FAILED",
+          "deployment_state_message": "Container creation failed. Please see build logs for more information."
+        },
+        "workload_size": "Large",
+        "workload_type": "CPU"
+      }
+    ],
+    "served_models": [
+      {
+        "creation_timestamp": 1785338940000,
+        "creator": "akil.thomas@databricks.com",
+        "model_name": "users.akil_thomas.mmd_storage_probe",
+        "model_version": "12",
+        "name": "mmd_storage_probe-12",
+        "scale_to_zero_enabled": true,
+        "state": {
+          "deployment": "DEPLOYMENT_FAILED",
+          "deployment_state_message": "Container creation failed. Please see build logs for more information."
+        },
+        "workload_size": "Large",
+        "workload_type": "CPU"
+      }
+    ],
+    "start_time": 1785338940000,
+    "traffic_config": {
+      "routes": [
+        {
+          "served_entity_name": "mmd_storage_probe-12",
+          "served_model_name": "mmd_storage_probe-12",
+          "traffic_percentage": 100
+        }
+      ]
+    }
+  },
+  "permission_level": "CAN_MANAGE",
+  "route_optimized": false,
+  "state": {
+    "config_update": "UPDATE_FAILED",
+    "ready": "NOT_READY"
+  }
+}
