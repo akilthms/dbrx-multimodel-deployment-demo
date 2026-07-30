@@ -1,0 +1,15 @@
+
+# Local secrets for bundle deploy
+.env
+
+# Throwaway smoke/scratch notebooks (not part of the deliverable)
+notebooks/_scratch_*.py
+
+# Agent scratch + OS/editor noise
+.isaac/
+.DS_Store
+.idea/pyLspTools.xml
+
+# Python bytecode
+__pycache__/
+*.pyc
