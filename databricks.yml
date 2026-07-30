@@ -14,6 +14,8 @@ artifacts:
     build: uv build --wheel || python -m build --wheel
 
 variables:
+  run_as_user:
+    description: Deploy / run-as user email, also the cluster single_user_name. Set via BUNDLE_VAR_run_as_user (see .env).
   catalog:
     description: UC catalog for the run-plan table and artifact volume.
     default: users
@@ -48,8 +50,9 @@ targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: https://<your-workspace>.cloud.databricks.com
-      profile: <your-cli-profile>
+    # Auth (host + credentials) comes from the CLI profile named in
+    # DATABRICKS_CONFIG_PROFILE (see .env) — the host cannot be a ${var} because
+    # it is resolved during auth, before bundle variables exist. run-as user is
+    # a bundle variable sourced from the same .env.
     run_as:
-      user_name: <your-email>@<your-company>.com
+      user_name: ${var.run_as_user}

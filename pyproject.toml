@@ -14,7 +14,12 @@ dependencies = [
     "numpy>=2.0",
     "psycopg[binary]",
     "psycopg-pool",
+    "typer>=0.12",
+    "python-dotenv>=1.0.1",
 ]
+
+[project.scripts]
+dbrx-mmd = "dbrx_multimodel_registration.cli.cli:main"
 
 [build-system]
 requires = ["hatchling"]

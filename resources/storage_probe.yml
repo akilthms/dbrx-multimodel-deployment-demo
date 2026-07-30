@@ -1,0 +1,66 @@
+# Serving storage-ceiling probe job (design-A test).
+#
+# Runs the `dbrx-mmd capacity stress` CLI on a SMALL single-node cluster to:
+#   1. carve TARGET_GB from an existing <region>/bundle_parquet (local FUSE read)
+#   2. bake it into a probe pyfunc, register to UC
+#   3. deploy ONE serving endpoint and report whether it accepted the artifact
+#
+# Deliberately smaller/cheaper than the registration cluster — this job does no
+# Spark work, just a local file carve + an MLflow log + an endpoint deploy. A
+# single i3.xlarge (1× 900 GB NVMe instance-store) has ample local disk for a
+# 30 GB carve and enough RAM for the log_model upload.
+#
+# Run it:
+#   databricks bundle deploy -t dev
+#   databricks bundle run storage_probe -- \
+#     /Volumes/${var.catalog}/${var.schema}/mlflow_artifacts/NORTHEAST/bundle_parquet \
+#     --model-name ${var.catalog}.${var.schema}.mmd_storage_probe \
+#     --target-gb 2 --build-only        # dry run first; drop --build-only + raise --target-gb for the real test
+resources:
+  jobs:
+    storage_probe:
+      name: "[${bundle.target}] mmd-storage-probe"
+      description: "Design-A serving storage-ceiling test: bake an N-GB artifact into one endpoint."
+      # >1 so multiple sizes deploy truly concurrently (each on its own job
+      # cluster) — needed for parallel ceiling-bracketing and the perf sweep.
+      max_concurrent_runs: 4
+
+      job_clusters:
+        - job_cluster_key: probe_cluster
+          new_cluster:
+            spark_version: "17.3.x-cpu-ml-scala2.13"
+            # i3.8xlarge: 32 vCPU / 244 GB + 4× 1.9 TB NVMe (~7.6 TB /local_disk0).
+            # Sized for the 1 TB test: log_model stages a temp copy of the artifact,
+            # so peak local disk is ~2× the target (~2 TB). i3.xlarge's 900 GB was
+            # fine up to ~30 GB but nowhere near 1 TB.
+            node_type_id: i3.8xlarge
+            num_workers: 0
+            data_security_mode: SINGLE_USER
+            single_user_name: ${var.run_as_user}
+            runtime_engine: STANDARD
+            custom_tags:
+              ResourceClass: SingleNode
+            aws_attributes:
+              zone_id: auto
+              # ON_DEMAND so a spot reap mid-deploy doesn't muddy the result.
+              availability: ON_DEMAND
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+
+      tasks:
+        - task_key: probe
+          job_cluster_key: probe_cluster
+          # python_wheel_task runs the `dbrx-mmd` console entry point (see
+          # pyproject [project.scripts]). The wheel is built + uploaded by the
+          # bundle's `multimodel_wheel` artifact.
+          python_wheel_task:
+            package_name: dbrx_multimodel_deployment_demo
+            entry_point: dbrx-mmd
+            # `bundle run storage_probe -- <args>` appends CLI args after these.
+            parameters:
+              - capacity
+              - stress
+          libraries:
+            # Relative to this resources/ file → the wheel `uv build` writes to dist/.
+            - whl: ../dist/*.whl
