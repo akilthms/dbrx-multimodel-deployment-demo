@@ -13,3 +13,6 @@ notebooks/_scratch_*.py
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Local eng investigation artifacts (contain workspace/endpoint IDs — not for public repo)
+reports/
