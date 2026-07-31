@@ -3,11 +3,13 @@
 import typer
 
 from dbrx_multimodel_registration.cli.commands import capacity as capacity_commands
+from dbrx_multimodel_registration.cli.commands import fleet as fleet_commands
 from dbrx_multimodel_registration.cli.commands import setup as setup_commands
 
 cli = typer.Typer(name="dbrx-mmd", help="dbrx-mmd — tools for the multi-model registration demo.")
 cli.add_typer(setup_commands.app, name="setup")
 cli.add_typer(capacity_commands.app, name="capacity")
+cli.add_typer(fleet_commands.app, name="fleet")
 
 
 def main() -> None:

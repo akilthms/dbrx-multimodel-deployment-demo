@@ -1,0 +1,70 @@
+# Serving-fleet deployment jobs — the customer-facing entry points.
+#
+#   databricks bundle run fleet_smoke   # tiny MOCK fleet, end-to-end (no customer data)
+#   databricks bundle run fleet_deploy -- \
+#       --table <cat>.<schema>.model_artifacts \
+#       --catalog <cat> --schema <schema> \
+#       --experiment /Users/<you>/mmd_fleet \
+#       --artifact-volume /Volumes/<cat>/<schema>/mlflow_artifacts \
+#       --shard-count 4
+#
+# Both run the `dbrx-mmd fleet ...` CLI as a python_wheel_task on a UC-enabled
+# single-node cluster. `bundle run <job> -- <args>` appends args after the base
+# `parameters` below. Set catalog/schema/experiment defaults per your workspace.
+resources:
+  jobs:
+    fleet_smoke:
+      name: "[${bundle.target}] mmd-fleet-smoke"
+      description: "Deploy a tiny mock serving fleet end-to-end (architecture demo, no customer data)."
+      max_concurrent_runs: 1
+      job_clusters:
+        - job_cluster_key: fleet_cluster
+          new_cluster: &fleet_cluster
+            spark_version: "17.3.x-cpu-ml-scala2.13"
+            node_type_id: i3.xlarge          # NVMe /local_disk0 for bundle staging
+            num_workers: 0
+            data_security_mode: SINGLE_USER  # required for 3-level UC table names
+            single_user_name: ${var.run_as_user}
+            runtime_engine: STANDARD
+            custom_tags: {ResourceClass: SingleNode}
+            aws_attributes: {zone_id: auto, availability: ON_DEMAND}
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: "local[*]"
+      tasks:
+        - task_key: smoke
+          job_cluster_key: fleet_cluster
+          python_wheel_task:
+            package_name: dbrx_multimodel_deployment_demo
+            entry_point: dbrx-mmd
+            parameters:
+              - fleet
+              - smoke
+              - --catalog
+              - ${var.catalog}
+              - --schema
+              - ${var.schema}
+              - --experiment
+              - /Users/${var.run_as_user}/mmd_fleet_smoke
+          libraries:
+            - whl: ../dist/*.whl
+
+    fleet_deploy:
+      name: "[${bundle.target}] mmd-fleet-deploy"
+      description: "Deploy a real serving fleet from a model_artifacts table. Pass --table etc. after `--`."
+      max_concurrent_runs: 1
+      job_clusters:
+        - job_cluster_key: fleet_cluster
+          new_cluster: *fleet_cluster
+      tasks:
+        - task_key: deploy
+          job_cluster_key: fleet_cluster
+          python_wheel_task:
+            package_name: dbrx_multimodel_deployment_demo
+            entry_point: dbrx-mmd
+            # `bundle run fleet_deploy -- --table ... --shard-count N` appends after this.
+            parameters:
+              - fleet
+              - deploy
+          libraries:
+            - whl: ../dist/*.whl
