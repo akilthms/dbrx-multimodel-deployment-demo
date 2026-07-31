@@ -16,3 +16,6 @@ __pycache__/
 
 # Local eng investigation artifacts (contain workspace/endpoint IDs — not for public repo)
 reports/
+
+# Presentations (author byline / internal detail — keep out of public repo)
+presentations/
